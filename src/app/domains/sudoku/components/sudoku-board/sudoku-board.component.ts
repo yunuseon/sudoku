@@ -3,7 +3,9 @@ import { afterNextRender, Component, effect, ElementRef, inject, Injector, signa
 const boardConfigs = {
   height: 2000,
   width: 2000,
-  mainBoarderWidth: 8,
+  mainGridWidth: 8,
+  subGridWidth: 4,
+
   backgroundColor: '#ffffff',
   mainBorderColor: '#000000'
 }
@@ -27,8 +29,8 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
         y: segmentY + coords.y0
       },
       to: {
-        x: width,
-        y: segmentY
+        x: width + coords.x0,
+        y: coords.y0 + segmentY
       }
     } as const
   })
@@ -47,7 +49,7 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
       },
       to: {
         x: segmentX + coords.x0,
-        y: height
+        y: height + coords.y0
       }
     } as const
   })
@@ -104,11 +106,33 @@ export class SudokuBoardComponent {
 
     // draw main grid
 
-    // draw horizontal lines
+
+
+    const subGridWidth = (config.width - 4 * config.mainGridWidth) / 3;
+    const subGridHeight = (config.height - 4 * config.mainGridWidth) / 3
+
+
+    // render subgrid
+    new Array(3).fill(0).forEach((_, x) => {
+      new Array(3).fill(0).forEach((_, y) => {
+        drawGrid(context, {
+          x0: (x + 1) * config.mainGridWidth - config.subGridWidth + x * subGridWidth,
+          x1: (x + 1) * config.mainGridWidth + config.subGridWidth + (x + 1) * subGridWidth,
+          y0: (y + 1) * config.mainGridWidth - config.subGridWidth + y * subGridWidth,
+          y1: (y + 1) * config.mainGridWidth + config.subGridWidth + (y + 1) * subGridHeight
+        }, {
+          lineWidth: config.subGridWidth,
+          gridColor: 'grey'
+        })
+      })
+    });
+
+
+
+    // render main grid
     drawGrid(context, {
       x0: 0, x1: config.width, y0: 0, y1: config.height
-    }, {lineWidth: config.mainBoarderWidth, gridColor: config.mainBorderColor});
-
+    }, {lineWidth: config.mainGridWidth, gridColor: config.mainBorderColor});
   }
 
 
