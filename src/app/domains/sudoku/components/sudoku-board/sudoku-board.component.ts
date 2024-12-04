@@ -8,6 +8,53 @@ const boardConfigs = {
   mainBorderColor: '#000000'
 }
 
+const drawGrid = (context: CanvasRenderingContext2D, coords: {
+  x0: number; x1: number; y0: number; y1: number;}, config: {lineWidth: number; gridColor: string;}): void => {
+  context.lineWidth = config.lineWidth;
+  context.strokeStyle = config.gridColor;
+
+  const width = coords.x1 - coords.x0;
+  const height = coords.y1 - coords.y0;
+
+  const horizontalLines = new Array(4).fill(0).map((_, i) => {
+    const segmentHeight = (height - config.lineWidth) / 3;
+    const segmentY = i * segmentHeight + config.lineWidth / 2;
+
+
+    return {
+      from: {
+        x: 0 + coords.x0,
+        y: segmentY + coords.y0
+      },
+      to: {
+        x: width,
+        y: segmentY
+      }
+    } as const
+  })
+
+
+  horizontalLines.forEach(({from, to}) => drawLine(context, from, to));
+
+  const verticalLines = new Array(4).fill(0).map((_, i) => {
+    const segmentHeight = (width - config.lineWidth) / 3;
+    const segmentX = i * segmentHeight + config.lineWidth / 2;
+
+    return {
+      from: {
+        x: segmentX + coords.x0,
+        y: 0 + coords.y0
+      },
+      to: {
+        x: segmentX + coords.x0,
+        y: height
+      }
+    } as const
+  })
+
+
+  verticalLines.forEach(({from, to}) => drawLine(context, from, to));
+}
 
 const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number}, to: {x: number; y: number}): void => {
   console.log(`(${from.x}, ${from.y}) ->`, `(${to.x}, ${to.y})`);
@@ -58,48 +105,10 @@ export class SudokuBoardComponent {
     // draw main grid
 
     // draw horizontal lines
-    context.lineWidth = config.mainBoarderWidth;
-    context.strokeStyle = config.mainBorderColor;
+    drawGrid(context, {
+      x0: 0, x1: config.width, y0: 0, y1: config.height
+    }, {lineWidth: config.mainBoarderWidth, gridColor: config.mainBorderColor});
 
-
-    const horizontalLines = new Array(4).fill(0).map((_, i) => {
-      const segmentHeight = (config.height - config.mainBoarderWidth) / 3;
-      const segmentY = i * segmentHeight + config.mainBoarderWidth / 2;
-
-      return {
-        from: {
-          x: 0,
-          y: segmentY
-        },
-        to: {
-          x: config.width,
-          y: segmentY
-        }
-      } as const
-    })
-
-
-    horizontalLines.forEach(({from, to}) => drawLine(context, from, to));
-
-
-    const verticalLines = new Array(4).fill(0).map((_, i) => {
-      const segmentHeight = (config.width - config.mainBoarderWidth) / 3;
-      const segmentX = i * segmentHeight + config.mainBoarderWidth / 2;
-
-      return {
-        from: {
-          x: segmentX,
-          y: 0
-        },
-        to: {
-          x: segmentX,
-          y: config.height
-        }
-      } as const
-    })
-
-
-    verticalLines.forEach(({from, to}) => drawLine(context, from, to));
   }
 
 
