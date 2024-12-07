@@ -1,19 +1,7 @@
-import { afterNextRender, Component, effect, ElementRef, inject, Injector, signal } from '@angular/core';
+import { afterNextRender, Component, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
+import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
 
-const defaultBoardConfig = {
-  height: 2000,
-  width: 2000,
-  mainGridBorderWidth: 8,
-  subGridBorderWidth: 4,
-  verticalSegmentation: 3,
-  horizontalSegmentation: 3,
 
-  backgroundColor: '#ffffff',
-  mainBorderColor: '#000000',
-  subGridBorderColor: '#ff0000'
-};
-
-type BoardConfig = typeof defaultBoardConfig;
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
   x0: number; x1: number; y0: number; y1: number;},
@@ -83,8 +71,8 @@ const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number
   templateUrl: './sudoku-board.component.html',
   styleUrl: './sudoku-board.component.scss',
   host: {
-    '[attr.width]': 'configs().width',
-    '[attr.height]': 'configs().height',
+    '[attr.width]': 'config().width',
+    '[attr.height]': 'config().height',
     '[style.width.px]': '800',
     '[style.height.px]': '800'
   }
@@ -92,7 +80,8 @@ const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number
 export class SudokuBoardComponent {
   private readonly canvas = inject(ElementRef).nativeElement as HTMLCanvasElement;
   private readonly injector = inject(Injector);
-  private readonly configs = signal(defaultBoardConfig);
+
+  public readonly config = input.required<BoardConfig>();
 
 
   constructor() {
@@ -107,7 +96,7 @@ export class SudokuBoardComponent {
 
   private render(): void {
     console.log('rendered');
-    const config = this.configs();
+    const config = this.config();
 
     const context = this.canvas.getContext('2d')!;
 
@@ -119,10 +108,13 @@ export class SudokuBoardComponent {
 
 
 
+    if (config.subGridBorderWidth > 0) {
+    // render subgrid
+
     const subGridWidth = (config.width - (config.verticalSegmentation + 1) * config.mainGridBorderWidth) / config.verticalSegmentation;
     const subGridHeight = (config.height - (config.horizontalSegmentation + 1) * config.mainGridBorderWidth) / config.horizontalSegmentation;
 
-    // render subgrid
+
     new Array(config.verticalSegmentation).fill(0).forEach((_, x) => {
       new Array(config.horizontalSegmentation).fill(0).forEach((_, y) => {
         drawGrid(context, {
@@ -138,8 +130,12 @@ export class SudokuBoardComponent {
         })
       })
     });
+    }
 
 
+
+
+    if (config.mainGridBorderWidth > 0) {
 
     // render main grid
     drawGrid(context, {
@@ -150,6 +146,8 @@ export class SudokuBoardComponent {
       verticalSegmentation: config.verticalSegmentation,
       horizontalSegmentation: config.horizontalSegmentation
     });
+    }
+
   }
 
 
