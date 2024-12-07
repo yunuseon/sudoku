@@ -1,25 +1,36 @@
 import { afterNextRender, Component, effect, ElementRef, inject, Injector, signal } from '@angular/core';
 
-const boardConfigs = {
+const defaultBoardConfig = {
   height: 2000,
   width: 2000,
-  mainGridWidth: 8,
-  subGridWidth: 4,
+  mainGridBorderWidth: 8,
+  subGridBorderWidth: 4,
+  verticalSegmentation: 3,
+  horizontalSegmentation: 3,
 
   backgroundColor: '#ffffff',
-  mainBorderColor: '#000000'
-}
+  mainBorderColor: '#000000',
+  subGridBorderColor: '#ff0000'
+};
+
+type BoardConfig = typeof defaultBoardConfig;
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
-  x0: number; x1: number; y0: number; y1: number;}, config: {lineWidth: number; gridColor: string;}): void => {
+  x0: number; x1: number; y0: number; y1: number;},
+  config: {
+    lineWidth: number;
+    gridColor: string;
+    verticalSegmentation: number;
+    horizontalSegmentation: number;
+  }): void => {
   context.lineWidth = config.lineWidth;
   context.strokeStyle = config.gridColor;
 
   const width = coords.x1 - coords.x0;
   const height = coords.y1 - coords.y0;
 
-  const horizontalLines = new Array(4).fill(0).map((_, i) => {
-    const segmentHeight = (height - config.lineWidth) / 3;
+  const horizontalLines = new Array(config.horizontalSegmentation + 1).fill(0).map((_, i) => {
+    const segmentHeight = (height - config.lineWidth) / config.horizontalSegmentation;
     const segmentY = i * segmentHeight + config.lineWidth / 2;
 
 
@@ -38,8 +49,8 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
 
   horizontalLines.forEach(({from, to}) => drawLine(context, from, to));
 
-  const verticalLines = new Array(4).fill(0).map((_, i) => {
-    const segmentHeight = (width - config.lineWidth) / 3;
+  const verticalLines = new Array(config.verticalSegmentation + 1).fill(0).map((_, i) => {
+    const segmentHeight = (width - config.lineWidth) / config.verticalSegmentation;
     const segmentX = i * segmentHeight + config.lineWidth / 2;
 
     return {
@@ -59,7 +70,7 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
 }
 
 const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number}, to: {x: number; y: number}): void => {
-  console.log(`(${from.x}, ${from.y}) ->`, `(${to.x}, ${to.y})`);
+  // console.log(`(${from.x}, ${from.y}) ->`, `(${to.x}, ${to.y})`);
   context.beginPath(); // Start a new path
   context.moveTo(from.x, from.y); // Move the pen to (30, 50)
   context.lineTo(to.x, to.y); // Draw a line to (150, 100)
@@ -81,7 +92,7 @@ const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number
 export class SudokuBoardComponent {
   private readonly canvas = inject(ElementRef).nativeElement as HTMLCanvasElement;
   private readonly injector = inject(Injector);
-  private readonly configs = signal(boardConfigs);
+  private readonly configs = signal(defaultBoardConfig);
 
 
   constructor() {
@@ -108,21 +119,22 @@ export class SudokuBoardComponent {
 
 
 
-    const subGridWidth = (config.width - 4 * config.mainGridWidth) / 3;
-    const subGridHeight = (config.height - 4 * config.mainGridWidth) / 3
-
+    const subGridWidth = (config.width - (config.verticalSegmentation + 1) * config.mainGridBorderWidth) / config.verticalSegmentation;
+    const subGridHeight = (config.height - (config.horizontalSegmentation + 1) * config.mainGridBorderWidth) / config.horizontalSegmentation;
 
     // render subgrid
-    new Array(3).fill(0).forEach((_, x) => {
-      new Array(3).fill(0).forEach((_, y) => {
+    new Array(config.verticalSegmentation).fill(0).forEach((_, x) => {
+      new Array(config.horizontalSegmentation).fill(0).forEach((_, y) => {
         drawGrid(context, {
-          x0: (x + 1) * config.mainGridWidth - config.subGridWidth + x * subGridWidth,
-          x1: (x + 1) * config.mainGridWidth + config.subGridWidth + (x + 1) * subGridWidth,
-          y0: (y + 1) * config.mainGridWidth - config.subGridWidth + y * subGridWidth,
-          y1: (y + 1) * config.mainGridWidth + config.subGridWidth + (y + 1) * subGridHeight
+          x0: (x + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + x * subGridWidth,
+          x1: (x + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (x + 1) * subGridWidth,
+          y0: (y + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + y * subGridHeight,
+          y1: (y + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (y + 1) * subGridHeight
         }, {
-          lineWidth: config.subGridWidth,
-          gridColor: 'grey'
+          lineWidth: config.subGridBorderWidth,
+          gridColor: config.subGridBorderColor,
+          horizontalSegmentation: config.horizontalSegmentation,
+          verticalSegmentation: config.verticalSegmentation
         })
       })
     });
@@ -132,7 +144,12 @@ export class SudokuBoardComponent {
     // render main grid
     drawGrid(context, {
       x0: 0, x1: config.width, y0: 0, y1: config.height
-    }, {lineWidth: config.mainGridWidth, gridColor: config.mainBorderColor});
+    }, {
+      lineWidth: config.mainGridBorderWidth,
+      gridColor: config.mainBorderColor,
+      verticalSegmentation: config.verticalSegmentation,
+      horizontalSegmentation: config.horizontalSegmentation
+    });
   }
 
 
