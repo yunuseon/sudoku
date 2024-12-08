@@ -110,7 +110,7 @@ export class SudokuBoardComponent {
     const subGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
 
 
-    if (config.subGridBorderWidth > 0) {
+    if (config.valueGridBorderWidth > 0) {
       // render subgrid
       new Array(config.xDimension).fill(0).forEach((_, x) => {
         new Array(config.yDimension).fill(0).forEach((_, y) => {
@@ -120,8 +120,8 @@ export class SudokuBoardComponent {
             y0: (y + 1) * config.mainGridBorderWidth + y * subGridHeight,
             y1: (y + 1) * config.mainGridBorderWidth + (y + 1) * subGridHeight
           }, {
-            lineWidth: config.subGridBorderWidth,
-            gridColor: config.subGridBorderColor,
+            lineWidth: config.valueGridBorderWidth,
+            gridColor: config.valueGridBorderColor,
             horizontalSegmentation: config.yDimension,
             verticalSegmentation: config.xDimension
           })
@@ -270,7 +270,7 @@ export class SudokuBoardComponent {
 
     */
 
-    if (config.subSubGridBorderWidth > 0) {
+    if (config.hintGridBorderWidth > 0) {
       // render subgrid
       new Array(config.xDimension).fill(0).forEach((_, mainGridX) => {
         new Array(config.yDimension).fill(0).forEach((_, mainGridY) => {
@@ -285,8 +285,8 @@ export class SudokuBoardComponent {
                 y0: (mainGridY * subGridWidth) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * subSubGridHeight,
                 y1: (mainGridY * subGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (valueGridY + 1) * subSubGridHeight
               }, {
-                lineWidth: config.subSubGridBorderWidth,
-                gridColor: config.subSubGridBorderColor,
+                lineWidth: config.hintGridBorderWidth,
+                gridColor: config.hintGridBorderColor,
                 horizontalSegmentation: config.yDimension,
                 verticalSegmentation: config.xDimension
               })
