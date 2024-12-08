@@ -159,9 +159,7 @@ export class SudokuBoardComponent {
 
     config.boardValues.forEach((val, i) => {
       if (val.length === 0) return;
-
-      const { x, y } = boardIndexToBoardGridCoordinate(i, config.xDimension, config.yDimension);
-      console.log(`(${x}, ${y})`);
+      const { x, y } = boardValueIndexToBoardGridCoordinate(i, config.xDimension, config.yDimension);
 
       const cummulativeMainGridWidth = (Math.floor(x / config.xDimension) + 1) * config.mainGridBorderWidth;
       const cummulativeMainGridHeight = (Math.floor(y / config.yDimension) + 1) * config.mainGridBorderWidth;
@@ -181,8 +179,6 @@ export class SudokuBoardComponent {
 
 
       if (config.renderTextBoundingBoxLineWidth > 0) {
-
-
         context.beginPath();
         context.moveTo(
           alX - textMetrics.actualBoundingBoxLeft,
@@ -219,11 +215,33 @@ export class SudokuBoardComponent {
     context.strokeStyle = config.renderTextBoundingBoxColor;
     context.lineWidth = config.renderTextBoundingBoxLineWidth;
 
+    const filterIndices = config.boardValues.map((value, i) => {
+        if (value === '') return;
+
+        const {x, y} = boardValueIndexToBoardGridCoordinate(i, config.xDimension, config.yDimension);
+        const result: number[] = [];
+
+        for (let _y = 0; _y < config.yDimension; _y++) {
+          for (let _x = 0; _x < config.xDimension; _x++) {
+            result.push(
+              x * config.xDimension +
+              (config.xDimension * config.xDimension * config.xDimension) * (config.xDimension * y + _y) +
+              _x
+            )
+          }
+        }
+
+        return result;
+    }).flat();
+
     config.boardHints.forEach((val, i) => {
       if (val.length === 0) return;
 
       const { x, y } = boardHintIndexToBoardGridCoordinate(i, config.xDimension, config.yDimension);
-      console.log(`Hint coord (${x}, ${y}): ${val}`);
+
+      if (filterIndices.includes(i)) {
+        return;
+      }
 
       const cummulativeMainGridWidth = (Math.floor(x / (config.xDimension * config.xDimension)) + 1) * config.mainGridBorderWidth;
       const cummulativeMainGridHeight = (Math.floor(y / (config.yDimension * config.yDimension)) + 1) * config.mainGridBorderWidth;
@@ -242,8 +260,6 @@ export class SudokuBoardComponent {
       );
 
       if (config.renderTextBoundingBoxLineWidth > 0) {
-
-
         context.beginPath();
         context.moveTo(
           alX - textMetrics.actualBoundingBoxLeft,
@@ -276,9 +292,9 @@ export class SudokuBoardComponent {
             new Array(config.yDimension).fill(0).forEach((_, valueGridY) => {
               drawGrid(context, {
                 x0: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
-                x1: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth   + (valueGridX + 1) * valueGridWidth,
-                y0: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth   + valueGridY * valueGridHeight,
-                y1: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth   + (valueGridY + 1) * valueGridHeight
+                x1: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + (valueGridX + 1) * valueGridWidth,
+                y0: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * valueGridHeight,
+                y1: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (valueGridY + 1) * valueGridHeight
               }, {
                 lineWidth: config.hintGridBorderWidth,
                 gridColor: config.hintGridBorderColor,
@@ -306,19 +322,19 @@ export class SudokuBoardComponent {
       0 + (config.mainGridBorderWidth / 2)
     );
     context.lineTo(
-      config.width -  (config.mainGridBorderWidth / 2),
-      config.height -  (config.mainGridBorderWidth / 2)
+      config.width - (config.mainGridBorderWidth / 2),
+      config.height - (config.mainGridBorderWidth / 2)
     );
     context.lineTo(
-      0 +  (config.mainGridBorderWidth / 2),
-      config.height -  (config.mainGridBorderWidth / 2)
+      0 + (config.mainGridBorderWidth / 2),
+      config.height - (config.mainGridBorderWidth / 2)
     );
     context.closePath();
     context.stroke();
   }
 }
 
-const boardIndexToBoardGridCoordinate = (index: number, xDimension: number, yDimension: number) => ({
+const boardValueIndexToBoardGridCoordinate = (index: number, xDimension: number, yDimension: number) => ({
   x: index % (xDimension * xDimension),
   y: Math.floor(index / (xDimension * xDimension))
 });

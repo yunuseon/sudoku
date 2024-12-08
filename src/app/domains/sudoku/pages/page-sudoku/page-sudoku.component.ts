@@ -3,6 +3,8 @@ import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 import { Pane } from 'tweakpane';
 
+
+
 const defaultBoardConfig = {
   height: 2000,
   width: 2000,
@@ -29,8 +31,8 @@ const defaultBoardConfig = {
   renderTextBoundingBoxColor: '#00ff00',
 
   boardValues: [
-    '', '1', '2', '3', '', '', '6', '', '8',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8',
+    '0', '1', '2', '3', '', '5', '6', '7', '',
+    '0', '1', '2', '3', '4', '5', '', '7', '8',
     '0', '1', '2', '3', '4', '5', '6', '7', '8',
     '0', '1', '2', '3', '4', '5', '6', '7', '8',
     '0', '1', '2', '3', '4', '5', '6', '7', '8',
@@ -39,9 +41,7 @@ const defaultBoardConfig = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8',
     '0', '1', '2', '3', '4', '5', '6', '7', '8',
   ],
-  boardHints: [
-    '1', '2', '3', '4', '5', '6', '7', '8', '9',
-  ]
+  boardHints: new Array(3 * 3 * 3 * 3 * 3 * 3).fill('1')
 };
 
 export type BoardConfig = typeof defaultBoardConfig;
@@ -100,9 +100,6 @@ export class PageSudokuComponent {
       hintFolder.addBinding(PARAMS, 'hintFontColor').on('change', (ev) => this.boardConfig.update(config => ({ ...config, hintFontColor: ev.value })));
       hintFolder.addBinding(PARAMS, 'hintGridBorderWidth', {step: 1}).on('change', (ev) => this.boardConfig.update(config => ({ ...config, hintGridBorderWidth: ev.value })));
       hintFolder.addBinding(PARAMS, 'hintGridBorderColor').on('change', (ev) => this.boardConfig.update(config => ({ ...config, hintGridBorderColor: ev.value })));
-
-
-
     })
   }
 }
