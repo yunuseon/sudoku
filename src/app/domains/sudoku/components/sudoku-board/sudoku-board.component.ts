@@ -4,7 +4,8 @@ import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
 
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
-  x0: number; x1: number; y0: number; y1: number;},
+  x0: number; x1: number; y0: number; y1: number;
+},
   config: {
     lineWidth: number;
     gridColor: string;
@@ -35,7 +36,7 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
   })
 
 
-  horizontalLines.forEach(({from, to}) => drawLine(context, from, to));
+  horizontalLines.forEach(({ from, to }) => drawLine(context, from, to));
 
   const verticalLines = new Array(config.verticalSegmentation + 1).fill(0).map((_, i) => {
     const segmentHeight = (width - config.lineWidth) / config.verticalSegmentation;
@@ -54,10 +55,10 @@ const drawGrid = (context: CanvasRenderingContext2D, coords: {
   })
 
 
-  verticalLines.forEach(({from, to}) => drawLine(context, from, to));
+  verticalLines.forEach(({ from, to }) => drawLine(context, from, to));
 }
 
-const drawLine = (context: CanvasRenderingContext2D, from: {x: number; y: number}, to: {x: number; y: number}): void => {
+const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: number }, to: { x: number; y: number }): void => {
   // console.log(`(${from.x}, ${from.y}) ->`, `(${to.x}, ${to.y})`);
   context.beginPath(); // Start a new path
   context.moveTo(from.x, from.y); // Move the pen to (30, 50)
@@ -88,14 +89,12 @@ export class SudokuBoardComponent {
     afterNextRender(() => {
       effect(() => {
         this.render();
-      }, { injector: this.injector})
+      }, { injector: this.injector })
     });
-
-
   }
 
   private render(): void {
-    console.log('rendered');
+    console.log('render');
     const config = this.config();
 
     const context = this.canvas.getContext('2d')!;
@@ -108,28 +107,27 @@ export class SudokuBoardComponent {
 
 
 
+    const subGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
+    const subGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+
+
     if (config.subGridBorderWidth > 0) {
-    // render subgrid
-
-    const subGridWidth = (config.width - (config.verticalSegmentation + 1) * config.mainGridBorderWidth) / config.verticalSegmentation;
-    const subGridHeight = (config.height - (config.horizontalSegmentation + 1) * config.mainGridBorderWidth) / config.horizontalSegmentation;
-
-
-    new Array(config.verticalSegmentation).fill(0).forEach((_, x) => {
-      new Array(config.horizontalSegmentation).fill(0).forEach((_, y) => {
-        drawGrid(context, {
-          x0: (x + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + x * subGridWidth,
-          x1: (x + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (x + 1) * subGridWidth,
-          y0: (y + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + y * subGridHeight,
-          y1: (y + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (y + 1) * subGridHeight
-        }, {
-          lineWidth: config.subGridBorderWidth,
-          gridColor: config.subGridBorderColor,
-          horizontalSegmentation: config.horizontalSegmentation,
-          verticalSegmentation: config.verticalSegmentation
+      // render subgrid
+      new Array(config.xDimension).fill(0).forEach((_, x) => {
+        new Array(config.yDimension).fill(0).forEach((_, y) => {
+          drawGrid(context, {
+            x0: (x + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + x * subGridWidth,
+            x1: (x + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (x + 1) * subGridWidth,
+            y0: (y + 1) * config.mainGridBorderWidth - config.subGridBorderWidth + y * subGridHeight,
+            y1: (y + 1) * config.mainGridBorderWidth + config.subGridBorderWidth + (y + 1) * subGridHeight
+          }, {
+            lineWidth: config.subGridBorderWidth,
+            gridColor: config.subGridBorderColor,
+            horizontalSegmentation: config.yDimension,
+            verticalSegmentation: config.xDimension
+          })
         })
-      })
-    });
+      });
     }
 
 
@@ -137,18 +135,82 @@ export class SudokuBoardComponent {
 
     if (config.mainGridBorderWidth > 0) {
 
-    // render main grid
-    drawGrid(context, {
-      x0: 0, x1: config.width, y0: 0, y1: config.height
-    }, {
-      lineWidth: config.mainGridBorderWidth,
-      gridColor: config.mainBorderColor,
-      verticalSegmentation: config.verticalSegmentation,
-      horizontalSegmentation: config.horizontalSegmentation
-    });
+      // render main grid
+      drawGrid(context, {
+        x0: 0, x1: config.width, y0: 0, y1: config.height
+      }, {
+        lineWidth: config.mainGridBorderWidth,
+        gridColor: config.mainBorderColor,
+        verticalSegmentation: config.xDimension,
+        horizontalSegmentation: config.yDimension
+      });
     }
 
+    const subSubGridWidth = subGridWidth / config.xDimension;
+    const subSubGridHeight = subGridHeight / config.yDimension;
+
+    context.font = `${config.fontSize}px ${config.font}`;
+    context.fillStyle = config.fontColor;
+    context.textAlign = 'center';
+    context.textBaseline = 'top';
+
+
+    config.boardValues.forEach((val, i) => {
+      const { x, y } = boardIndexToBoardGridCoordinate(i, config.xDimension, config.yDimension);
+      console.log(`(${x}, ${y})`);
+
+
+      const cummulativeMainGridWidth = (Math.floor(x / config.xDimension) + 1) * config.mainGridBorderWidth;
+      const cummulativeMainGridHeight = (Math.floor(y / config.yDimension) + 1) * config.mainGridBorderWidth;
+
+      let textMetrics = context.measureText(val);
+      const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
+
+
+      const alX = (x + 1) * (subSubGridWidth) - (subSubGridWidth / 2) + cummulativeMainGridWidth;
+      const alY = (y + 1) * (subSubGridHeight) - (subSubGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+
+      context.fillText(
+        val,
+        alX,
+        alY,
+      );
+
+
+      if (config.renderTextBoundingBoxLineWidth > 0) {
+        context.strokeStyle = config.renderTextBoundingBoxColor;
+        context.lineWidth = config.renderTextBoundingBoxLineWidth;
+
+        context.beginPath();
+        context.moveTo(
+          alX - textMetrics.actualBoundingBoxLeft,
+          alY - textMetrics.actualBoundingBoxAscent
+        );
+        context.lineTo(
+          alX + textMetrics.actualBoundingBoxRight,
+          alY - textMetrics.actualBoundingBoxAscent
+        );
+        context.lineTo(
+          alX + textMetrics.actualBoundingBoxRight,
+          alY + textMetrics.actualBoundingBoxDescent
+        );
+        context.lineTo(
+          alX - textMetrics.actualBoundingBoxLeft,
+          alY + textMetrics.actualBoundingBoxDescent
+        );
+        context.closePath();
+        context.stroke();
+      }
+
+    })
   }
 
 
+}
+
+const boardIndexToBoardGridCoordinate = (index: number, xDimension: number, yDimension: number) => {
+  return {
+    x: index % (xDimension * xDimension),
+    y: Math.floor(index / (xDimension * xDimension))
+  }
 }
