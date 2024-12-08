@@ -106,8 +106,8 @@ export class SudokuBoardComponent {
 
 
 
-    const subGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
-    const subGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+    const mainGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
+    const mainGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
 
 
     if (config.valueGridBorderWidth > 0) {
@@ -115,10 +115,10 @@ export class SudokuBoardComponent {
       new Array(config.xDimension).fill(0).forEach((_, x) => {
         new Array(config.yDimension).fill(0).forEach((_, y) => {
           drawGrid(context, {
-            x0: (x + 1) * config.mainGridBorderWidth + x * subGridWidth,
-            x1: (x + 1) * config.mainGridBorderWidth + (x + 1) * subGridWidth,
-            y0: (y + 1) * config.mainGridBorderWidth + y * subGridHeight,
-            y1: (y + 1) * config.mainGridBorderWidth + (y + 1) * subGridHeight
+            x0: (x + 1) * config.mainGridBorderWidth + x * mainGridWidth,
+            x1: (x + 1) * config.mainGridBorderWidth + (x + 1) * mainGridWidth,
+            y0: (y + 1) * config.mainGridBorderWidth + y * mainGridHeight,
+            y1: (y + 1) * config.mainGridBorderWidth + (y + 1) * mainGridHeight
           }, {
             lineWidth: config.valueGridBorderWidth,
             gridColor: config.valueGridBorderColor,
@@ -145,9 +145,8 @@ export class SudokuBoardComponent {
       });
     }
 
-    const subSubGridWidth = subGridWidth / config.xDimension;
-    const subSubGridHeight = subGridHeight / config.yDimension;
-
+    const valueGridWidth = mainGridWidth / config.xDimension;
+    const valueGridHeight = mainGridHeight / config.yDimension;
 
     // render board values
     context.font = `${config.valueFontSize}px ${config.valueFont}`;
@@ -171,8 +170,8 @@ export class SudokuBoardComponent {
       const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
 
 
-      const alX = (x + 1) * (subSubGridWidth) - (subSubGridWidth / 2) + cummulativeMainGridWidth;
-      const alY = (y + 1) * (subSubGridHeight) - (subSubGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+      const alX = (x + 1) * (valueGridWidth) - (valueGridWidth / 2) + cummulativeMainGridWidth;
+      const alY = (y + 1) * (valueGridHeight) - (valueGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
 
       context.fillText(
         val,
@@ -206,12 +205,11 @@ export class SudokuBoardComponent {
       }
     });
 
-    /*
 
     // render hint values
 
-    const subSubSubGridWidth = subSubGridWidth / config.xDimension;
-    const subSubSubGridHeight = subSubGridHeight / config.yDimension;
+    const hintGridWidth = valueGridWidth / config.xDimension;
+    const hintGridHeight = valueGridHeight / config.yDimension;
 
     context.font = `${config.hintFontSize}px ${config.hintFont}`;
     context.fillStyle = config.hintFontColor;
@@ -234,8 +232,8 @@ export class SudokuBoardComponent {
       const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
 
 
-      const alX = (x + 1) * (subSubSubGridWidth) - (subSubSubGridWidth / 2) + cummulativeMainGridWidth;
-      const alY = (y + 1) * (subSubSubGridHeight) - (subSubSubGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+      const alX = (x + 1) * (hintGridWidth) - (hintGridWidth / 2) + cummulativeMainGridWidth;
+      const alY = (y + 1) * (hintGridHeight) - (hintGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
 
       context.fillText(
         val,
@@ -268,7 +266,6 @@ export class SudokuBoardComponent {
       }
     });
 
-    */
 
     if (config.hintGridBorderWidth > 0) {
       // render subgrid
@@ -277,13 +274,11 @@ export class SudokuBoardComponent {
 
           new Array(config.xDimension).fill(0).forEach((_, valueGridX) => {
             new Array(config.yDimension).fill(0).forEach((_, valueGridY) => {
-              const mainGridWidthSum = (mainGridX + 1) * config.mainGridBorderWidth;
-
               drawGrid(context, {
-                x0: (mainGridX * subGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * subSubGridWidth,
-                x1: (mainGridX * subGridHeight) + (mainGridX + 1) * config.mainGridBorderWidth + (valueGridX + 1) * subSubGridWidth,
-                y0: (mainGridY * subGridWidth) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * subSubGridHeight,
-                y1: (mainGridY * subGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (valueGridY + 1) * subSubGridHeight
+                x0: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
+                x1: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth   + (valueGridX + 1) * valueGridWidth,
+                y0: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth   + valueGridY * valueGridHeight,
+                y1: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth   + (valueGridY + 1) * valueGridHeight
               }, {
                 lineWidth: config.hintGridBorderWidth,
                 gridColor: config.hintGridBorderColor,
