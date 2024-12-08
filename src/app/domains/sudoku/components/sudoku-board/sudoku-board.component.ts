@@ -301,7 +301,10 @@ export class SudokuBoardComponent {
     context.lineWidth = config.mainGridBorderWidth;
 
     context.beginPath();
-    context.moveTo(0,0);
+    context.moveTo(
+      config.mainGridBorderWidth / 2,
+      config.mainGridBorderWidth / 2
+    );
 
     context.lineTo(
       config.width - (config.mainGridBorderWidth / 2),
