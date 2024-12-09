@@ -1,7 +1,7 @@
-import { afterNextRender, Component, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
-
-
+import { fromEvent, map } from 'rxjs';
+import { outputFromObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
   x0: number; x1: number; y0: number; y1: number;
@@ -80,20 +80,43 @@ const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: numbe
 export class SudokuBoardComponent {
   private readonly canvas = inject(ElementRef).nativeElement as HTMLCanvasElement;
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly config = input.required<BoardConfig>();
 
+  private readonly selectPosition$ = fromEvent<MouseEvent>(this.canvas, 'click').pipe(
+    map((event) => {
+      const config = this.config();
+
+      const elementRelativeX = event.offsetX;
+      const elementRelativeY = event.offsetY;
+      const canvasRelativeX = elementRelativeX * this.canvas.width / this.canvas.clientWidth;
+      const canvasRelativeY = elementRelativeY * this.canvas.height / this.canvas.clientHeight;
+
+      const mainGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
+      const mainGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+
+      const valueGridWidth = mainGridWidth / config.xDimension;
+      const valueGridHeight = mainGridHeight / config.yDimension;
+
+      return {
+        x: Math.floor(canvasRelativeX / valueGridWidth),
+        y: Math.floor(canvasRelativeY / valueGridHeight),
+      }
+    })
+  );
+
+  public readonly selectPosition = outputFromObservable(this.selectPosition$);
 
   constructor() {
     afterNextRender(() => {
       effect(() => {
         this.render();
-      }, { injector: this.injector })
+      }, { injector: this.injector });
     });
   }
 
   private render(): void {
-    console.log('render');
     const config = this.config();
 
     const context = this.canvas.getContext('2d')!;
@@ -112,154 +135,166 @@ export class SudokuBoardComponent {
     const hintGridHeight = valueGridHeight / config.yDimension;
 
 
-    if (config.valueGridBorderWidth > 0) {
-      // draw main grid
-      new Array(config.xDimension).fill(0).forEach((_, mainGridX) => {
-        new Array(config.yDimension).fill(0).forEach((_, mainGridY) => {
 
-          // render subgrid
-          new Array(config.xDimension).fill(0).forEach((_, valueGridX) => {
-            new Array(config.yDimension).fill(0).forEach((_, valueGridY) => {
+    // draw main grid
+    new Array(config.xDimension).fill(0).forEach((_, mainGridX) => {
+      new Array(config.yDimension).fill(0).forEach((_, mainGridY) => {
 
-              const valueX = mainGridX * config.xDimension + valueGridX;
-              const valueY = mainGridY * config.yDimension + valueGridY;
+        // render subgrid
+        new Array(config.xDimension).fill(0).forEach((_, valueGridX) => {
+          new Array(config.yDimension).fill(0).forEach((_, valueGridY) => {
 
-              const boardIndex = valueY * (config.xDimension * config.xDimension) + valueX;
-              const val = config.boardValues[boardIndex];
+            const valueX = mainGridX * config.xDimension + valueGridX;
+            const valueY = mainGridY * config.yDimension + valueGridY;
 
-              if (val !== '') {
-                // RENDER VALUE
-                context.font = `${config.valueFontSize}px ${config.valueFont}`;
-                context.fillStyle = config.valueFontColor;
-                context.textAlign = 'center';
-                context.textBaseline = 'top';
+            const boardIndex = valueY * (config.xDimension * config.xDimension) + valueX;
+            const val = config.boardValues[boardIndex];
 
-                context.strokeStyle = config.renderTextBoundingBoxColor;
-                context.lineWidth = config.renderTextBoundingBoxLineWidth;
+            if (config.selectedPosition.x === valueX && config.selectedPosition.y === valueY) {
+              // highlight selected tile
+              context.fillStyle = '#f0a05033';
+              context.fillRect(
+                (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
+                (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * valueGridHeight,
+                valueGridWidth,
+                valueGridHeight
+              );
+            }
 
-                const cummulativeMainGridWidth = (Math.floor(valueX / config.xDimension) + 1) * config.mainGridBorderWidth;
-                const cummulativeMainGridHeight = (Math.floor(valueY / config.yDimension) + 1) * config.mainGridBorderWidth;
+            if (val !== '') {
+              // RENDER VALUE
+              context.font = `${config.valueFontSize}px ${config.valueFont}`;
+              context.fillStyle = config.valueFontColor;
+              context.textAlign = 'center';
+              context.textBaseline = 'top';
 
-                const textMetrics = context.measureText(val);
-                const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
+              context.strokeStyle = config.renderTextBoundingBoxColor;
+              context.lineWidth = config.renderTextBoundingBoxLineWidth;
+
+              const cummulativeMainGridWidth = (Math.floor(valueX / config.xDimension) + 1) * config.mainGridBorderWidth;
+              const cummulativeMainGridHeight = (Math.floor(valueY / config.yDimension) + 1) * config.mainGridBorderWidth;
+
+              const textMetrics = context.measureText(val);
+              const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
 
 
-                const alX = (valueX + 1) * (valueGridWidth) - (valueGridWidth / 2) + cummulativeMainGridWidth;
-                const alY = (valueY + 1) * (valueGridHeight) - (valueGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+              const alX = (valueX + 1) * (valueGridWidth) - (valueGridWidth / 2) + cummulativeMainGridWidth;
+              const alY = (valueY + 1) * (valueGridHeight) - (valueGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
 
-                context.fillText(
-                  val,
-                  alX,
-                  alY,
+              context.fillText(
+                val,
+                alX,
+                alY,
+              );
+
+              if (config.renderTextBoundingBoxLineWidth > 0) {
+                context.beginPath();
+                context.moveTo(
+                  alX - textMetrics.actualBoundingBoxLeft,
+                  alY - textMetrics.actualBoundingBoxAscent
                 );
-
-                if (config.renderTextBoundingBoxLineWidth > 0) {
-                  context.beginPath();
-                  context.moveTo(
-                    alX - textMetrics.actualBoundingBoxLeft,
-                    alY - textMetrics.actualBoundingBoxAscent
-                  );
-                  context.lineTo(
-                    alX + textMetrics.actualBoundingBoxRight,
-                    alY - textMetrics.actualBoundingBoxAscent
-                  );
-                  context.lineTo(
-                    alX + textMetrics.actualBoundingBoxRight,
-                    alY + textMetrics.actualBoundingBoxDescent
-                  );
-                  context.lineTo(
-                    alX - textMetrics.actualBoundingBoxLeft,
-                    alY + textMetrics.actualBoundingBoxDescent
-                  );
-                  context.closePath();
-                  context.stroke();
-                }
-
-
-                // RENDER VALUE
-              } else {
-                // RENDER HINT
-
-                context.font = `${config.hintFontSize}px ${config.hintFont}`;
-                context.fillStyle = config.hintFontColor;
-                context.textAlign = 'center';
-                context.textBaseline = 'top';
-
-                context.strokeStyle = config.renderTextBoundingBoxColor;
-                context.lineWidth = config.renderTextBoundingBoxLineWidth;
-
-                if (config.hintGridBorderWidth > 0) {
-                  drawGrid(context, {
-                    x0: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
-                    x1: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + (valueGridX + 1) * valueGridWidth,
-                    y0: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * valueGridHeight,
-                    y1: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (valueGridY + 1) * valueGridHeight
-                  }, {
-                    lineWidth: config.hintGridBorderWidth,
-                    gridColor: config.hintGridBorderColor,
-                    horizontalSegmentation: config.yDimension,
-                    verticalSegmentation: config.xDimension
-                  });
-                }
-
-
-                new Array(config.xDimension).fill(0).forEach((_, hintGridX) => {
-                  new Array(config.yDimension).fill(0).forEach((_, hintGridY) => {
-
-                    const hintX = mainGridX * config.xDimension * config.xDimension + valueGridX * config.xDimension + hintGridX;
-                    const hintY = mainGridY * config.yDimension * config.yDimension + valueGridY * config.yDimension + hintGridY;
-
-                    const cummulativeMainGridWidth = (Math.floor(hintX / (config.xDimension * config.xDimension)) + 1) * config.mainGridBorderWidth;
-                    const cummulativeMainGridHeight = (Math.floor(hintY / (config.yDimension * config.yDimension)) + 1) * config.mainGridBorderWidth;
-
-                    const hintIndex = hintY * (config.xDimension * config.xDimension * config.xDimension) + hintX;
-                    const hint = config.boardHints[hintIndex];
-
-                    const textMetrics = context.measureText(hint);
-                    const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
-
-                    const alX = (hintX + 1) * (hintGridWidth) - (hintGridWidth / 2) + cummulativeMainGridWidth;
-                    const alY = (hintY + 1) * (hintGridHeight) - (hintGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
-
-                    context.fillText(
-                      hint,
-                      alX,
-                      alY,
-                    );
-
-                    if (config.renderTextBoundingBoxLineWidth > 0) {
-                      context.beginPath();
-                      context.moveTo(
-                        alX - textMetrics.actualBoundingBoxLeft,
-                        alY - textMetrics.actualBoundingBoxAscent
-                      );
-                      context.lineTo(
-                        alX + textMetrics.actualBoundingBoxRight,
-                        alY - textMetrics.actualBoundingBoxAscent
-                      );
-                      context.lineTo(
-                        alX + textMetrics.actualBoundingBoxRight,
-                        alY + textMetrics.actualBoundingBoxDescent
-                      );
-                      context.lineTo(
-                        alX - textMetrics.actualBoundingBoxLeft,
-                        alY + textMetrics.actualBoundingBoxDescent
-                      );
-                      context.closePath();
-                      context.stroke();
-                    }
-                  })
-
-                })
-
-                //  RENDER HINT
+                context.lineTo(
+                  alX + textMetrics.actualBoundingBoxRight,
+                  alY - textMetrics.actualBoundingBoxAscent
+                );
+                context.lineTo(
+                  alX + textMetrics.actualBoundingBoxRight,
+                  alY + textMetrics.actualBoundingBoxDescent
+                );
+                context.lineTo(
+                  alX - textMetrics.actualBoundingBoxLeft,
+                  alY + textMetrics.actualBoundingBoxDescent
+                );
+                context.closePath();
+                context.stroke();
               }
 
 
+              // RENDER VALUE
+            } else {
+              // RENDER HINT
 
-            })
+              context.font = `${config.hintFontSize}px ${config.hintFont}`;
+              context.fillStyle = config.hintFontColor;
+              context.textAlign = 'center';
+              context.textBaseline = 'top';
+
+              context.strokeStyle = config.renderTextBoundingBoxColor;
+              context.lineWidth = config.renderTextBoundingBoxLineWidth;
+
+              if (config.hintGridBorderWidth > 0) {
+                drawGrid(context, {
+                  x0: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
+                  x1: (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + (valueGridX + 1) * valueGridWidth,
+                  y0: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * valueGridHeight,
+                  y1: (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (valueGridY + 1) * valueGridHeight
+                }, {
+                  lineWidth: config.hintGridBorderWidth,
+                  gridColor: config.hintGridBorderColor,
+                  horizontalSegmentation: config.yDimension,
+                  verticalSegmentation: config.xDimension
+                });
+              }
+
+
+              new Array(config.xDimension).fill(0).forEach((_, hintGridX) => {
+                new Array(config.yDimension).fill(0).forEach((_, hintGridY) => {
+
+                  const hintX = mainGridX * config.xDimension * config.xDimension + valueGridX * config.xDimension + hintGridX;
+                  const hintY = mainGridY * config.yDimension * config.yDimension + valueGridY * config.yDimension + hintGridY;
+
+                  const cummulativeMainGridWidth = (Math.floor(hintX / (config.xDimension * config.xDimension)) + 1) * config.mainGridBorderWidth;
+                  const cummulativeMainGridHeight = (Math.floor(hintY / (config.yDimension * config.yDimension)) + 1) * config.mainGridBorderWidth;
+
+                  const hintIndex = hintY * (config.xDimension * config.xDimension * config.xDimension) + hintX;
+                  const hint = config.boardHints[hintIndex];
+
+                  const textMetrics = context.measureText(hint);
+                  const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
+
+                  const alX = (hintX + 1) * (hintGridWidth) - (hintGridWidth / 2) + cummulativeMainGridWidth;
+                  const alY = (hintY + 1) * (hintGridHeight) - (hintGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+
+                  context.fillText(
+                    hint,
+                    alX,
+                    alY,
+                  );
+
+                  if (config.renderTextBoundingBoxLineWidth > 0) {
+                    context.beginPath();
+                    context.moveTo(
+                      alX - textMetrics.actualBoundingBoxLeft,
+                      alY - textMetrics.actualBoundingBoxAscent
+                    );
+                    context.lineTo(
+                      alX + textMetrics.actualBoundingBoxRight,
+                      alY - textMetrics.actualBoundingBoxAscent
+                    );
+                    context.lineTo(
+                      alX + textMetrics.actualBoundingBoxRight,
+                      alY + textMetrics.actualBoundingBoxDescent
+                    );
+                    context.lineTo(
+                      alX - textMetrics.actualBoundingBoxLeft,
+                      alY + textMetrics.actualBoundingBoxDescent
+                    );
+                    context.closePath();
+                    context.stroke();
+                  }
+                })
+
+              })
+
+              //  RENDER HINT
+            }
+
+
+
           })
+        })
 
+        if (config.valueGridBorderWidth > 0) {
 
           drawGrid(context, {
             x0: (mainGridX + 1) * config.mainGridBorderWidth + mainGridX * mainGridWidth,
@@ -272,10 +307,10 @@ export class SudokuBoardComponent {
             horizontalSegmentation: config.yDimension,
             verticalSegmentation: config.xDimension
           });
+        }
 
-        })
-      });
-    }
+      })
+    });
 
 
 
