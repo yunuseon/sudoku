@@ -1,6 +1,6 @@
-import { afterNextRender, Component, DestroyRef, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
+import { afterNextRender, afterRenderEffect, Component, DestroyRef, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
-import { fromEvent, map } from 'rxjs';
+import { filter, fromEvent, map, tap } from 'rxjs';
 import { outputFromObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
@@ -73,14 +73,13 @@ const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: numbe
   host: {
     '[attr.width]': 'config().width',
     '[attr.height]': 'config().height',
-    '[style.width.px]': '800',
-    '[style.height.px]': '800'
+    '[style.width.px]': 'config().clientWidth',
+    '[style.height.px]': 'config().clientHeight'
   }
 })
 export class SudokuBoardComponent {
   private readonly canvas = inject(ElementRef).nativeElement as HTMLCanvasElement;
   private readonly injector = inject(Injector);
-  private readonly destroyRef = inject(DestroyRef);
 
   public readonly config = input.required<BoardConfig>();
 
@@ -90,30 +89,61 @@ export class SudokuBoardComponent {
 
       const elementRelativeX = event.offsetX;
       const elementRelativeY = event.offsetY;
-      const canvasRelativeX = elementRelativeX * this.canvas.width / this.canvas.clientWidth;
-      const canvasRelativeY = elementRelativeY * this.canvas.height / this.canvas.clientHeight;
 
-      const mainGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
-      const mainGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+      const x = elementRelativeX * this.canvas.width / this.canvas.clientWidth;
+      const y = elementRelativeY * this.canvas.height / this.canvas.clientHeight;
 
-      const valueGridWidth = mainGridWidth / config.xDimension;
-      const valueGridHeight = mainGridHeight / config.yDimension;
+      const mainGridBorderWidth = config.mainGridBorderWidth;
+
+      const cellBorderWidth = config.valueGridBorderWidth;
+
+      const mainGridSizeX = (config.width - mainGridBorderWidth * (config.xDimension + 1)) / config.xDimension;
+      const mainGridSizeY = (config.height - mainGridBorderWidth * (config.yDimension + 1)) / config.yDimension;
+
+      const cellSizeX = (mainGridSizeX - cellBorderWidth * (config.xDimension + 1)) / config.xDimension;
+      const cellSizeY = (mainGridSizeY - cellBorderWidth * (config.yDimension + 1)) / config.yDimension;
+
+      for (let j = 0; j <= config.yDimension; j++) {
+        for (let i = 0; i <= config.xDimension; i++) {
+          const borderPositionX = i * (mainGridSizeX + mainGridBorderWidth);
+          const borderPositionY = j * (mainGridSizeY + mainGridBorderWidth);
+          if (x >= borderPositionX && x <= borderPositionX + mainGridBorderWidth ||
+            y >= borderPositionY && y <= borderPositionY + mainGridBorderWidth) {
+            return null;
+          }
+        }
+      }
+
+      const gridX = Math.floor(x / (mainGridSizeX + mainGridBorderWidth));
+      const gridY = Math.floor(y / (mainGridSizeY + mainGridBorderWidth));
+      const localX = x % (mainGridSizeX + mainGridBorderWidth) - mainGridBorderWidth;
+      const localY = y % (mainGridSizeY + mainGridBorderWidth) - mainGridBorderWidth;
+
+      if (localX < 0 || localY < 0) {
+        return null
+      }
+
+      const cellX = Math.floor(localX / (cellSizeX + cellBorderWidth));
+      const cellY = Math.floor(localY / (cellSizeY + cellBorderWidth));
+      const cellLocalX = localX % (cellSizeX + cellBorderWidth);
+      const cellLocalY = localY % (cellSizeY + cellBorderWidth);
+
+      if (cellLocalX < cellBorderWidth || cellLocalY < cellBorderWidth) {
+        return null;
+      }
 
       return {
-        x: Math.floor(canvasRelativeX / valueGridWidth),
-        y: Math.floor(canvasRelativeY / valueGridHeight),
-      }
-    })
+        x: gridX * config.xDimension + cellX,
+        y: gridY * config.yDimension + cellY
+      };
+    }),
+    filter(Boolean)
   );
 
   public readonly selectPosition = outputFromObservable(this.selectPosition$);
 
   constructor() {
-    afterNextRender(() => {
-      effect(() => {
-        this.render();
-      }, { injector: this.injector });
-    });
+    afterRenderEffect(() => this.render());
   }
 
   private render(): void {
@@ -133,7 +163,6 @@ export class SudokuBoardComponent {
 
     const hintGridWidth = valueGridWidth / config.xDimension;
     const hintGridHeight = valueGridHeight / config.yDimension;
-
 
 
     // draw main grid

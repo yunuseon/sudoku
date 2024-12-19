@@ -6,16 +6,20 @@ import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board
 
 
 const defaultBoardConfig = {
-  height: 2000,
-  width: 2000,
-  xDimension: 2,
-  yDimension: 2,
+  height: 1000,
+  width: 1000,
+
+  clientWidth: 800,
+  clientHeight: 800,
+
+  xDimension: 3,
+  yDimension: 3,
   backgroundColor: '#ffffff',
 
   mainBorderColor: '#000000',
-  mainGridBorderWidth: 8,
+  mainGridBorderWidth: 100,
 
-  valueFontSize: 220,
+  valueFontSize: 40,
   valueFont: 'system-ui',
   valueFontColor: '#ff00ff',
   valueGridBorderColor: '#ff0000',
@@ -30,13 +34,8 @@ const defaultBoardConfig = {
   renderTextBoundingBoxLineWidth: 0,
   renderTextBoundingBoxColor: '#00ff00',
 
-  boardValues: [
-    '', '1', '2', '',
-    '', '', '', '3',
-    '0', '', '', '3',
-    '', '1', '2', '',
-  ],
-  boardHints: new Array(2 * 2 * 2 * 2 * 2 * 2).fill('1'),
+  boardValues: new Array(3 * 3 * 3 * 3).fill('1'),
+  boardHints: new Array(3 * 3 * 3 * 2 * 3 * 3).fill('1'),
   selectedPosition: {
     x: 0,
     y: 0
