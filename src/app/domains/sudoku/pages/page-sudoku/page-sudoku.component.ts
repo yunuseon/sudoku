@@ -3,36 +3,28 @@ import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 
-
-
 const defaultBoardConfig = {
-  height: 1000,
-  width: 1000,
-
-  clientWidth: 800,
-  clientHeight: 800,
-
-  xDimension: 3,
-  yDimension: 3,
-  backgroundColor: '#ffffff',
-
-  mainBorderColor: '#000000',
-  mainGridBorderWidth: 100,
-
-  valueFontSize: 40,
-  valueFont: 'system-ui',
-  valueFontColor: '#ff00ff',
-  valueGridBorderColor: '#ff0000',
-  valueGridBorderWidth: 4,
-
-  hintFontSize: 30,
-  hintFont: 'system-ui',
-  hintFontColor: '#2070a0',
-  hintGridBorderColor: '#666666',
-  hintGridBorderWidth: 2,
-
-  renderTextBoundingBoxLineWidth: 0,
-  renderTextBoundingBoxColor: '#00ff00',
+  "height": 1000,
+  "width": 1000,
+  "clientWidth": 800,
+  "clientHeight": 800,
+  "xDimension": 3,
+  "yDimension": 3,
+  "backgroundColor": "#213555",
+  "mainBorderColor": "#d8c4b6",
+  "mainGridBorderWidth": 12,
+  "valueFontSize": 50,
+  "valueFont": "system-ui",
+  "valueFontColor": "#f5efe7",
+  "valueGridBorderColor": "#3e5879",
+  "valueGridBorderWidth": 4,
+  "hintFontSize": 21,
+  "hintFont": "system-ui",
+  "hintFontColor": "#d8c4b6",
+  "hintGridBorderColor": "#eac0c0",
+  "hintGridBorderWidth": 0,
+  "renderTextBoundingBoxLineWidth": 0,
+  "renderTextBoundingBoxColor": "#00ff00",
 
   boardValues: new Array(3 * 3 * 3 * 3).fill('1'),
   boardHints: new Array(3 * 3 * 3 * 2 * 3 * 3).fill('1'),
@@ -59,12 +51,24 @@ export class PageSudokuComponent {
     afterNextRender(() => {
       this.setupDebug();
     });
-
-
   }
 
-  updatePosition(position: {x: number, y: number}) {
-    this.boardConfig.update(config => ({ ...config, selectedPosition: position}));
+  public set(value: string) {
+    this.boardConfig.update(config => {
+      const selectedPosition = config.selectedPosition.y * (config.xDimension * config.xDimension) + config.selectedPosition.x;
+
+      return {
+        ...config, boardValues: [
+          ...config.boardValues.slice(0, selectedPosition),
+          String(value),
+          ...config.boardValues.slice(selectedPosition + 1)
+        ]
+      };
+    })
+  }
+
+  updatePosition(position: { x: number, y: number }) {
+    this.boardConfig.update(config => ({ ...config, selectedPosition: position }));
   }
 
 
@@ -72,6 +76,15 @@ export class PageSudokuComponent {
     const PARAMS = this.boardConfig();
 
     const pane = new Pane();
+
+
+    const btn = pane.addButton({
+      title: 'copy configs',
+    });
+
+    btn.on('click', (x) => {
+      navigator.clipboard.writeText(JSON.stringify(this.boardConfig()));
+    });
 
     const generalFolder = pane.addFolder({
       title: 'General'
