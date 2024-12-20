@@ -25,6 +25,7 @@ const keyboardSettings: KeyBindings = {
   'Digit7': ['set', '7'],
   'Digit8': ['set', '8'],
   'Digit9': ['set', '9'],
+  'Backspace': ['set', ''],
   'ArrowLeft': ['move', 'left'],
   'ArrowRight': ['move', 'right'],
   'ArrowUp': ['move', 'up'],
