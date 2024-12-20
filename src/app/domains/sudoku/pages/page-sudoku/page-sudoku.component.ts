@@ -6,19 +6,30 @@ import { filter, fromEvent, map, tap, withLatestFrom } from 'rxjs';
 import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
-const keyboardSettings = {
-  keyBindings: {
-    'Digit1': '1',
-    'Digit2': '2',
-    'Digit3': '3',
-    'Digit4': '4',
-    'Digit5': '5',
-    'Digit6': '6',
-    'Digit7': '7',
-    'Digit8': '8',
-    'Digit9': '9',
-  } satisfies Record<string, string>
-}
+type SetAction = ['set', string];
+
+type MoveDirection = 'left' | 'right' | 'up' | 'down';
+type MoveAction = ['move', MoveDirection];
+
+type KeyAction = SetAction | MoveAction;
+
+type KeyBindings = Record<string, KeyAction>;
+
+const keyboardSettings: KeyBindings = {
+  'Digit1': ['set', '1'],
+  'Digit2': ['set', '2'],
+  'Digit3': ['set', '3'],
+  'Digit4': ['set', '4'],
+  'Digit5': ['set', '5'],
+  'Digit6': ['set', '6'],
+  'Digit7': ['set', '7'],
+  'Digit8': ['set', '8'],
+  'Digit9': ['set', '9'],
+  'ArrowLeft': ['move', 'left'],
+  'ArrowRight': ['move', 'right'],
+  'ArrowUp': ['move', 'up'],
+  'ArrowDown': ['move', 'down'],
+};
 
 const gameSettings = {
   "xDimension": 3,
@@ -62,8 +73,8 @@ export class PageSudokuComponent {
   private readonly preConfig = signal(boardSettings);
   private readonly keyboardSettings = signal(keyboardSettings);
 
-  private readonly keyboardBindings$ = toObservable(this.keyboardSettings).pipe(
-    map(settings => Object.entries(settings.keyBindings))
+  private readonly keyboardSettings$ = toObservable(this.keyboardSettings).pipe(
+    map(keyBindings => Object.entries(keyBindings))
   );
 
   private readonly gameState = linkedSignal(() => {
@@ -92,17 +103,19 @@ export class PageSudokuComponent {
   }));
 
   private readonly document = inject(DOCUMENT);
-  private readonly pressedKeys$ = fromEvent(this.document, 'keypress').pipe(
+  private readonly pressedKeys$ = fromEvent(this.document, 'keydown').pipe(
     filter((ev): ev is KeyboardEvent => ev instanceof KeyboardEvent),
     map(ev => ev.code),
+    tap(console.log)
   );
 
+
   private readonly keys$ = this.pressedKeys$.pipe(
-    withLatestFrom(this.keyboardBindings$),
-    map(([code, bindings]) => bindings.find(([key]) => key === code)?.[1]),
+    withLatestFrom(this.keyboardSettings$),
+    map(([code, keyboardSettings]) => keyboardSettings.find(([key]) => key === code)?.[1]),
     filter(Boolean),
     takeUntilDestroyed()
-  ).subscribe(value => this.set(value));
+  ).subscribe(keyAction => this.executeAction(keyAction));
 
   constructor() {
     afterNextRender(() => {
@@ -188,6 +201,107 @@ export class PageSudokuComponent {
     });
 
     copyConfigsButton.on('click', () => navigator.clipboard.writeText(JSON.stringify(this.boardConfig())));
+  }
+
+  private executeAction(keyAction: KeyAction): void {
+    const [type, value] = keyAction;
+
+    switch (type) {
+      case 'set': {
+        this.set(value);
+        return;
+      }
+      case 'move': {
+        this.move(value);
+        return;
+      }
+    }
+  }
+
+  private move(value: MoveDirection) {
+    switch (value) {
+      case 'left':
+        this.moveLeft();
+        return;
+      case 'right':
+        this.moveRight();
+        return;
+      case 'up':
+        this.moveUp();
+        return;
+      case 'down':
+        this.moveDown();
+        return;
+    }
+  }
+
+  private moveLeft(): void {
+    this.gameState.update(gameState => {
+      if (gameState.selectedPosition.x === 0) {
+        return gameState;
+      }
+
+      return {
+        ...gameState,
+        selectedPosition: {
+          ...gameState.selectedPosition,
+          x: gameState.selectedPosition.x - 1
+        }
+      }
+    });
+  }
+
+  private moveRight(): void {
+    const { xDimension } = this.dimensionConfig();
+
+    this.gameState.update(gameState => {
+      if (gameState.selectedPosition.x < (xDimension * xDimension) - 1) {
+        return {
+          ...gameState,
+          selectedPosition: {
+            ...gameState.selectedPosition,
+            x: gameState.selectedPosition.x + 1
+          }
+        }
+      }
+
+      return gameState;
+    });
+  }
+
+  private moveUp(): void {
+    this.gameState.update(gameState => {
+      if (gameState.selectedPosition.y === 0) {
+        return gameState;
+      }
+
+      return {
+        ...gameState,
+        selectedPosition: {
+          ...gameState.selectedPosition,
+          y: gameState.selectedPosition.y - 1
+        }
+      };
+    });
+  }
+
+  private moveDown(): void {
+    const { yDimension } = this.dimensionConfig();
+
+
+    this.gameState.update(gameState => {
+      if (gameState.selectedPosition.y < (yDimension * yDimension) - 1) {
+        return {
+          ...gameState,
+          selectedPosition: {
+            ...gameState.selectedPosition,
+            y: gameState.selectedPosition.y + 1
+          }
+        }
+      }
+
+      return gameState;
+    });
   }
 }
 
