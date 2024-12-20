@@ -6,6 +6,9 @@ import { filter, fromEvent, map, tap, withLatestFrom } from 'rxjs';
 import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
+const createNumericAlphabet = (n: number, m: number) => new Array(n * m).fill('').map((_, i) => String(i + 1));
+
+
 type SetAction = ['set', string];
 
 type MoveDirection = 'left' | 'right' | 'up' | 'down';
@@ -70,7 +73,7 @@ export type BoardConfig = ReturnType<PageSudokuComponent['boardConfig']>;
 })
 export class PageSudokuComponent {
 
-  private readonly dimensionConfig = signal(gameSettings);
+  private readonly gameStateConfig = signal(gameSettings);
   private readonly preConfig = signal(boardSettings);
   private readonly keyboardSettings = signal(keyboardSettings);
 
@@ -79,7 +82,7 @@ export class PageSudokuComponent {
   );
 
   private readonly gameState = linkedSignal(() => {
-    const config = this.dimensionConfig();
+    const config = this.gameStateConfig();
 
     return {
       boardValues: new Array(
@@ -93,12 +96,14 @@ export class PageSudokuComponent {
       selectedPosition: {
         x: 0,
         y: 0
-      }
+      },
+      hintMode: false,
+      alphabet: createNumericAlphabet(config.xDimension, config.yDimension)
     };
   })
 
   public readonly boardConfig = computed(() => ({
-    ...this.dimensionConfig(),
+    ...this.gameStateConfig(),
     ...this.preConfig(),
     ...this.gameState(),
   }));
@@ -125,22 +130,50 @@ export class PageSudokuComponent {
   }
 
   public set(value: string) {
-    const { xDimension } = this.dimensionConfig();
+    const { xDimension } = this.gameStateConfig();
 
     this.gameState.update(config => {
-      const selectedPosition = config.selectedPosition.y * (xDimension * xDimension) + config.selectedPosition.x;
+      const selectedValuePosition = config.selectedPosition.y * (xDimension * xDimension) + config.selectedPosition.x;
+      const selectedValue = config.boardValues[selectedValuePosition];
 
+      if (config.hintMode) {
+
+        // If the selected position has a value on it, do not add hints to it, because the player won't be able to see them
+        if (selectedValue !== '') {
+          return config;
+        }
+
+        const setCharacterIndex = config.alphabet.findIndex(character => character === value);
+        if (setCharacterIndex === -1) {
+          return config;
+        }
+
+        const selectedPosition = config.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (config.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
+
+        const newValue = config.boardHints[selectedPosition] === String(value) ? '' : String(value);
+        return {
+          ...config,
+          boardHints: [
+            ...config.boardHints.slice(0, selectedPosition),
+            newValue,
+            ...config.boardHints.slice(selectedPosition + 1)
+          ]
+        };
+      }
+
+      const newValue = selectedValue === String(value) ? '' : String(value);
       return {
-        ...config, boardValues: [
-          ...config.boardValues.slice(0, selectedPosition),
-          String(value),
-          ...config.boardValues.slice(selectedPosition + 1)
+        ...config,
+        boardValues: [
+          ...config.boardValues.slice(0, selectedValuePosition),
+          newValue,
+          ...config.boardValues.slice(selectedValuePosition + 1)
         ]
       };
     })
   }
 
-  updatePosition(position: { x: number, y: number }) {
+  public updatePosition(position: { x: number, y: number }) {
     this.gameState.update(config => ({ ...config, selectedPosition: position }));
   }
 
@@ -165,8 +198,9 @@ export class PageSudokuComponent {
       title: 'Game Settings'
     });
 
-    gameFolder.addBinding(PARAMS, 'xDimension', { step: 1, min: 1 }).on('change', (ev) => this.dimensionConfig.update(config => ({ ...config, xDimension: ev.value })));
-    gameFolder.addBinding(PARAMS, 'yDimension', { step: 1, min: 1 }).on('change', (ev) => this.dimensionConfig.update(config => ({ ...config, yDimension: ev.value })));
+    gameFolder.addBinding(PARAMS, 'xDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, xDimension: ev.value })));
+    gameFolder.addBinding(PARAMS, 'yDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, yDimension: ev.value })));
+    gameFolder.addBinding(PARAMS, 'hintMode').on('change', (ev) => this.gameState.update(config => ({ ...config, hintMode: ev.value })));
 
     const mainFolder = pane.addFolder({
       title: 'Main Grid'
@@ -253,7 +287,7 @@ export class PageSudokuComponent {
   }
 
   private moveRight(): void {
-    const { xDimension } = this.dimensionConfig();
+    const { xDimension } = this.gameStateConfig();
 
     this.gameState.update(gameState => {
       if (gameState.selectedPosition.x < (xDimension * xDimension) - 1) {
@@ -287,7 +321,7 @@ export class PageSudokuComponent {
   }
 
   private moveDown(): void {
-    const { yDimension } = this.dimensionConfig();
+    const { yDimension } = this.gameStateConfig();
 
 
     this.gameState.update(gameState => {
