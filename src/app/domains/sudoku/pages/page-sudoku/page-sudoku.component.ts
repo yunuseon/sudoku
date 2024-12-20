@@ -1,7 +1,24 @@
-import { afterNextRender, Component, computed, linkedSignal, signal } from '@angular/core';
+import { afterNextRender, Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
+import { filter, fromEvent, map, tap, withLatestFrom } from 'rxjs';
+import { DOCUMENT } from '@angular/common';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+
+const keyboardSettings = {
+  keyBindings: {
+    'Digit1': '1',
+    'Digit2': '2',
+    'Digit3': '3',
+    'Digit4': '4',
+    'Digit5': '5',
+    'Digit6': '6',
+    'Digit7': '7',
+    'Digit8': '8',
+    'Digit9': '9',
+  } satisfies Record<string, string>
+}
 
 const gameSettings = {
   "xDimension": 3,
@@ -11,8 +28,8 @@ const gameSettings = {
 const boardSettings = {
   "height": 1000,
   "width": 1000,
-  "clientWidth": 800,
-  "clientHeight": 800,
+  "clientWidth": 600,
+  "clientHeight": 600,
   "backgroundColor": "#213555",
   "mainBorderColor": "#d8c4b6",
   "mainGridBorderWidth": 12,
@@ -43,6 +60,11 @@ export class PageSudokuComponent {
 
   private readonly dimensionConfig = signal(gameSettings);
   private readonly preConfig = signal(boardSettings);
+  private readonly keyboardSettings = signal(keyboardSettings);
+
+  private readonly keyboardBindings$ = toObservable(this.keyboardSettings).pipe(
+    map(settings => Object.entries(settings.keyBindings))
+  );
 
   private readonly gameState = linkedSignal(() => {
     const config = this.dimensionConfig();
@@ -69,6 +91,19 @@ export class PageSudokuComponent {
     ...this.gameState(),
   }));
 
+  private readonly document = inject(DOCUMENT);
+  private readonly pressedKeys$ = fromEvent(this.document, 'keypress').pipe(
+    filter((ev): ev is KeyboardEvent => ev instanceof KeyboardEvent),
+    map(ev => ev.code),
+  );
+
+  private readonly keys$ = this.pressedKeys$.pipe(
+    withLatestFrom(this.keyboardBindings$),
+    map(([code, bindings]) => bindings.find(([key]) => key === code)?.[1]),
+    filter(Boolean),
+    takeUntilDestroyed()
+  ).subscribe(value => this.set(value));
+
   constructor() {
     afterNextRender(() => {
       this.setupDebug();
@@ -76,7 +111,7 @@ export class PageSudokuComponent {
   }
 
   public set(value: string) {
-    const {xDimension} = this.dimensionConfig();
+    const { xDimension } = this.dimensionConfig();
 
     this.gameState.update(config => {
       const selectedPosition = config.selectedPosition.y * (xDimension * xDimension) + config.selectedPosition.x;
@@ -106,6 +141,10 @@ export class PageSudokuComponent {
 
     generalFolder.addBinding(PARAMS, 'height', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, height: ev.value })));
     generalFolder.addBinding(PARAMS, 'width', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, width: ev.value })));
+    generalFolder.addBinding(PARAMS, 'clientWidth', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, clientWidth: ev.value })));
+    generalFolder.addBinding(PARAMS, 'clientHeight', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, clientHeight: ev.value })));
+
+
     generalFolder.addBinding(PARAMS, 'backgroundColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, backgroundColor: ev.value })));
 
     const gameFolder = pane.addFolder({
