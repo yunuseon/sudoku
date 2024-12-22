@@ -60,6 +60,8 @@ const boardSettings = {
   "hintGridBorderWidth": 0,
   "renderTextBoundingBoxLineWidth": 0,
   "renderTextBoundingBoxColor": "#00ff00",
+  "highlightColor": '#18263c',
+  "selectedCellHighlightColor": '#030509',
 }
 
 export type BoardConfig = ReturnType<PageSudokuComponent['boardConfig']>;
@@ -230,6 +232,13 @@ export class PageSudokuComponent {
     hintFolder.addBinding(PARAMS, 'hintFontColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, hintFontColor: ev.value })));
     hintFolder.addBinding(PARAMS, 'hintGridBorderWidth', { step: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, hintGridBorderWidth: ev.value })));
     hintFolder.addBinding(PARAMS, 'hintGridBorderColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, hintGridBorderColor: ev.value })));
+
+    const highlightFolder = pane.addFolder({
+      title: 'Highlight Settings'
+    });
+
+    highlightFolder.addBinding(PARAMS, 'highlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightColor: ev.value})));
+    highlightFolder.addBinding(PARAMS, 'selectedCellHighlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, selectedCellHighlightColor: ev.value})));
 
     const copyConfigsButton = pane.addButton({
       title: 'copy configs',

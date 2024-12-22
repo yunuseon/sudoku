@@ -1,7 +1,85 @@
+import { config } from './../../../../app.config.server';
 import { afterNextRender, afterRenderEffect, Component, DestroyRef, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
 import { filter, fromEvent, map, tap } from 'rxjs';
 import { outputFromObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+const highlightCells = (context: CanvasRenderingContext2D, selectedX: number, selectedY: number, config: {
+  xDimension: number;
+  yDimension: number;
+  mainGridBorderWidth: number;
+  width: number;
+  height: number;
+  highlightColor: string;
+  selectedCellHighlightColor: string;
+}): void => {
+  const mainGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
+  const mainGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+
+  const valueGridWidth = mainGridWidth / config.xDimension;
+  const valueGridHeight = mainGridHeight / config.yDimension;
+
+  const getBoardPixelX = (x: number) => {
+    const mainGridX = Math.floor(x / config.xDimension);
+    return (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + (x % config.xDimension) * valueGridWidth
+  };
+
+  const getBoardPixelY = (y: number) => {
+    const mainGridY = Math.floor(y / config.yDimension);
+    return (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (y % config.yDimension) * valueGridHeight
+  };
+
+
+  const mainGridX = Math.floor(selectedX / config.xDimension);
+  const mainGridY = Math.floor(selectedY / config.yDimension);
+
+  context.fillStyle = config.highlightColor;
+
+  for (let y = 0; y < config.yDimension; y++) {
+    for (let x = 0; x < config.xDimension; x++) {
+      context.fillRect(
+        getBoardPixelX(mainGridX * config.xDimension + x),
+        getBoardPixelY(mainGridY * config.yDimension + y),
+        valueGridWidth,
+        valueGridHeight
+      );
+    }
+  }
+
+  for (let x = 0; x < (config.xDimension * config.xDimension); x++) {
+    if (x === selectedX) {
+      continue;
+    }
+
+    context.fillRect(
+      getBoardPixelX(x),
+      getBoardPixelY(selectedY),
+      valueGridWidth,
+      valueGridHeight
+    );
+  }
+
+  for (let y = 0; y < (config.yDimension * config.yDimension); y++) {
+    if (y === selectedY) {
+      continue;
+    }
+    context.fillRect(
+      getBoardPixelX(selectedX),
+      getBoardPixelY(y),
+      valueGridWidth,
+      valueGridHeight
+    );
+  }
+
+
+  context.fillStyle = config.selectedCellHighlightColor;
+  context.fillRect(
+    getBoardPixelX(selectedX),
+    getBoardPixelY(selectedY),
+    valueGridWidth,
+    valueGridHeight
+  );
+}
 
 const drawGrid = (context: CanvasRenderingContext2D, coords: {
   x0: number; x1: number; y0: number; y1: number;
@@ -79,7 +157,6 @@ const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: numbe
 })
 export class SudokuBoardComponent {
   private readonly canvas = inject(ElementRef).nativeElement as HTMLCanvasElement;
-  private readonly injector = inject(Injector);
 
   public readonly config = input.required<BoardConfig>();
 
@@ -165,6 +242,20 @@ export class SudokuBoardComponent {
     const hintGridHeight = valueGridHeight / config.yDimension;
 
 
+    // draw highlight
+
+    // highlight selected tile
+    highlightCells(context, config.selectedPosition.x, config.selectedPosition.y, {
+      xDimension: config.xDimension,
+      yDimension: config.yDimension,
+      mainGridBorderWidth: config.mainGridBorderWidth,
+      width: config.width,
+      height: config.height,
+      highlightColor: config.highlightColor,
+      selectedCellHighlightColor: config.selectedCellHighlightColor
+    });
+
+
     // draw main grid
     new Array(config.xDimension).fill(0).forEach((_, mainGridX) => {
       new Array(config.yDimension).fill(0).forEach((_, mainGridY) => {
@@ -178,17 +269,6 @@ export class SudokuBoardComponent {
 
             const boardIndex = valueY * (config.xDimension * config.xDimension) + valueX;
             const val = config.boardValues[boardIndex];
-
-            if (config.selectedPosition.x === valueX && config.selectedPosition.y === valueY) {
-              // highlight selected tile
-              context.fillStyle = '#f0a05033';
-              context.fillRect(
-                (mainGridX * mainGridWidth) + (mainGridX + 1) * config.mainGridBorderWidth + valueGridX * valueGridWidth,
-                (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + valueGridY * valueGridHeight,
-                valueGridWidth,
-                valueGridHeight
-              );
-            }
 
             if (val !== '') {
               // RENDER VALUE
