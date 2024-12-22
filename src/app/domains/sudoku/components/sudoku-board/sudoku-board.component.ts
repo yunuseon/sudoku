@@ -1,8 +1,7 @@
-import { config } from './../../../../app.config.server';
-import { afterNextRender, afterRenderEffect, Component, DestroyRef, effect, ElementRef, inject, Injector, input, signal } from '@angular/core';
+import { afterRenderEffect, Component, ElementRef, inject, input } from '@angular/core';
+import { outputFromObservable } from '@angular/core/rxjs-interop';
+import { filter, fromEvent, map } from 'rxjs';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
-import { filter, fromEvent, map, tap } from 'rxjs';
-import { outputFromObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 const highlightCells = (context: CanvasRenderingContext2D, selectedX: number, selectedY: number, config: {
   xDimension: number;
@@ -143,6 +142,83 @@ const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: numbe
   context.stroke(); // Render the path
 }
 
+
+const drawValue = (context: CanvasRenderingContext2D, value: string, selectedValue: string, valueX: number, valueY: number, config: {
+  valueFontSize: number;
+  valueFont: string;
+  valueFontColor: string;
+  renderTextBoundingBoxColor: string;
+  renderTextBoundingBoxLineWidth: number;
+  xDimension: number;
+  mainGridBorderWidth: number;
+  yDimension: number;
+  width: number;
+  height: number;
+}) => {
+  context.font = `${config.valueFontSize}px ${config.valueFont}`;
+  context.fillStyle = config.valueFontColor;
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+
+  context.strokeStyle = config.renderTextBoundingBoxColor;
+  context.lineWidth = config.renderTextBoundingBoxLineWidth;
+
+
+  const mainGridWidth = (config.width - (config.xDimension + 1) * config.mainGridBorderWidth) / config.xDimension;
+  const mainGridHeight = (config.height - (config.yDimension + 1) * config.mainGridBorderWidth) / config.yDimension;
+
+  const valueGridWidth = mainGridWidth / config.xDimension;
+  const valueGridHeight = mainGridHeight / config.yDimension;
+
+  const cummulativeMainGridWidth = (Math.floor(valueX / config.xDimension) + 1) * config.mainGridBorderWidth;
+  const cummulativeMainGridHeight = (Math.floor(valueY / config.yDimension) + 1) * config.mainGridBorderWidth;
+
+
+  context.font = selectedValue === value ? `bold ${config.valueFontSize}px ${config.valueFont}` : `${config.valueFontSize}px ${config.valueFont}`;
+  context.fillStyle = config.valueFontColor;
+  context.textAlign = 'center';
+  context.textBaseline = 'top';
+
+  context.strokeStyle = config.renderTextBoundingBoxColor;
+  context.lineWidth = config.renderTextBoundingBoxLineWidth;
+
+  const textMetrics = context.measureText(value);
+  const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
+
+  const alX = (valueX + 1) * (valueGridWidth) - (valueGridWidth / 2) + cummulativeMainGridWidth;
+  const alY = (valueY + 1) * (valueGridHeight) - (valueGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
+
+  context.fillText(
+    value,
+    alX,
+    alY,
+  );
+
+  if (config.renderTextBoundingBoxLineWidth > 0) {
+    context.beginPath();
+    context.moveTo(
+      alX - textMetrics.actualBoundingBoxLeft,
+      alY - textMetrics.actualBoundingBoxAscent
+    );
+    context.lineTo(
+      alX + textMetrics.actualBoundingBoxRight,
+      alY - textMetrics.actualBoundingBoxAscent
+    );
+    context.lineTo(
+      alX + textMetrics.actualBoundingBoxRight,
+      alY + textMetrics.actualBoundingBoxDescent
+    );
+    context.lineTo(
+      alX - textMetrics.actualBoundingBoxLeft,
+      alY + textMetrics.actualBoundingBoxDescent
+    );
+    context.closePath();
+    context.stroke();
+  }
+
+}
+
+
 @Component({
   selector: 'canvas[hks-sudoku-board]',
   imports: [],
@@ -242,6 +318,8 @@ export class SudokuBoardComponent {
     const hintGridHeight = valueGridHeight / config.yDimension;
 
 
+    const selectedValue = config.boardValues[config.selectedPosition.y * config.xDimension * config.xDimension + config.selectedPosition.x];
+
     // draw highlight
 
     // highlight selected tile
@@ -271,63 +349,21 @@ export class SudokuBoardComponent {
             const val = config.boardValues[boardIndex];
 
             if (val !== '') {
-              // RENDER VALUE
-              context.font = `${config.valueFontSize}px ${config.valueFont}`;
-              context.fillStyle = config.valueFontColor;
-              context.textAlign = 'center';
-              context.textBaseline = 'top';
+              drawValue(context, val, selectedValue, valueX, valueY, {
+                valueFontSize: config.valueFontSize,
+                valueFont: config.valueFont,
+                valueFontColor: config.valueFontColor,
+                renderTextBoundingBoxColor: config.renderTextBoundingBoxColor,
+                renderTextBoundingBoxLineWidth: config.renderTextBoundingBoxLineWidth,
+                xDimension: config.xDimension,
+                mainGridBorderWidth: config.mainGridBorderWidth,
+                yDimension: config.yDimension,
+                width: config.width,
+                height: config.height,
+              });
 
-              context.strokeStyle = config.renderTextBoundingBoxColor;
-              context.lineWidth = config.renderTextBoundingBoxLineWidth;
-
-              const cummulativeMainGridWidth = (Math.floor(valueX / config.xDimension) + 1) * config.mainGridBorderWidth;
-              const cummulativeMainGridHeight = (Math.floor(valueY / config.yDimension) + 1) * config.mainGridBorderWidth;
-
-              const textMetrics = context.measureText(val);
-              const textRenderHeight = textMetrics.actualBoundingBoxAscent - textMetrics.actualBoundingBoxDescent;
-
-
-              const alX = (valueX + 1) * (valueGridWidth) - (valueGridWidth / 2) + cummulativeMainGridWidth;
-              const alY = (valueY + 1) * (valueGridHeight) - (valueGridHeight / 2) + cummulativeMainGridHeight + textRenderHeight / 2;
-
-              context.fillText(
-                val,
-                alX,
-                alY,
-              );
-
-              if (config.renderTextBoundingBoxLineWidth > 0) {
-                context.beginPath();
-                context.moveTo(
-                  alX - textMetrics.actualBoundingBoxLeft,
-                  alY - textMetrics.actualBoundingBoxAscent
-                );
-                context.lineTo(
-                  alX + textMetrics.actualBoundingBoxRight,
-                  alY - textMetrics.actualBoundingBoxAscent
-                );
-                context.lineTo(
-                  alX + textMetrics.actualBoundingBoxRight,
-                  alY + textMetrics.actualBoundingBoxDescent
-                );
-                context.lineTo(
-                  alX - textMetrics.actualBoundingBoxLeft,
-                  alY + textMetrics.actualBoundingBoxDescent
-                );
-                context.closePath();
-                context.stroke();
-              }
-
-
-              // RENDER VALUE
             } else {
               // RENDER HINT
-
-              context.font = `${config.hintFontSize}px ${config.hintFont}`;
-              context.fillStyle = config.hintFontColor;
-              context.textAlign = 'center';
-              context.textBaseline = 'top';
-
               context.strokeStyle = config.renderTextBoundingBoxColor;
               context.lineWidth = config.renderTextBoundingBoxLineWidth;
 
@@ -345,6 +381,10 @@ export class SudokuBoardComponent {
                 });
               }
 
+              context.font = `${config.hintFontSize}px ${config.hintFont}`;
+              context.fillStyle = config.hintFontColor;
+              context.textAlign = 'center';
+              context.textBaseline = 'top';
 
               new Array(config.xDimension).fill(0).forEach((_, hintGridX) => {
                 new Array(config.yDimension).fill(0).forEach((_, hintGridY) => {
