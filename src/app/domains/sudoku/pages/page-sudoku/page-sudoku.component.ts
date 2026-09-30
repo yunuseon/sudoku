@@ -1,18 +1,22 @@
-import { afterNextRender, Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, inject, PLATFORM_ID } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
-import { filter, fromEvent, map, withLatestFrom } from 'rxjs';
-import { DOCUMENT } from '@angular/common';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { createNumericAlphabet, createSudoku, getHighlightedCells, getMatchingCells } from '../../logic/sudoku.logic';
-
-type SetAction = ['set', string];
-
-type MoveDirection = 'left' | 'right' | 'up' | 'down';
-type MoveAction = ['move', MoveDirection];
+import { defer, EMPTY, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, withLatestFrom } from 'rxjs';
+import { AsyncPipe, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ConfigureGameAction, createGameState, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, MoveAction, SetAction } from '../../logic/sudoku.logic';
+import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
 type KeyAction = SetAction | MoveAction;
+
+type ConfigureBoardAction = ['configureBoard', Partial<BoardSettings>];
+type CopyConfigAction = ['copyConfig', null];
+
+type DebugAction = ConfigureBoardAction | ConfigureGameAction | HintModeAction | CopyConfigAction;
+
+type PageAction = GameAction | ConfigureBoardAction | CopyConfigAction;
+type StateAction = Exclude<PageAction, CopyConfigAction>;
 
 type KeyBindings = Record<string, KeyAction>;
 
@@ -64,301 +68,196 @@ const boardSettings = {
   "highlightFontColor": '#ff0ff0',
 }
 
+type BoardSettings = typeof boardSettings;
+
 // The only impure part of the game setup, the generator itself is deterministic for a given seed
 const createRandomSeed = () => Math.floor(Math.random() * 2 ** 32);
 
-export type BoardConfig = ReturnType<PageSudokuComponent['boardConfig']>;
+type PageState = GameState & { boardSettings: BoardSettings };
+
+// Board settings only concern the view, everything else is handled by the game reducer
+const pageReducer = (state: PageState, action: StateAction): PageState => action[0] === 'configureBoard'
+  ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
+  : { ...state, ...gameReducer(state, action) };
+
+const toBoardConfig = (state: PageState) => ({
+  ...state.settings,
+  ...state.boardSettings,
+  ...state.game,
+  highlightedCells: getHighlightedCells(state.settings.xDimension, state.game.selectedPosition),
+  matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition)
+});
+
+export type BoardConfig = ReturnType<typeof toBoardConfig>;
+
+// Tweakpane is imperative, so its setup is wrapped in an observable: subscribing creates the pane and emits its changes as actions, unsubscribing disposes it
+const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new Observable(subscriber => {
+  // Tweakpane writes into the object it is bound to, so it gets its own copy instead of the config from the state
+  const PARAMS = { ...config };
+
+  const pane = new Pane();
+
+  const generalFolder = pane.addFolder({
+    title: 'General'
+  });
+
+  const general$ = merge(
+    fromBinding$(generalFolder, PARAMS, 'height', { step: 1, min: 1 }),
+    fromBinding$(generalFolder, PARAMS, 'width', { step: 1, min: 1 }),
+    fromBinding$(generalFolder, PARAMS, 'clientWidth', { step: 1, min: 1 }),
+    fromBinding$(generalFolder, PARAMS, 'clientHeight', { step: 1, min: 1 }),
+    fromBinding$(generalFolder, PARAMS, 'backgroundColor')
+  );
+
+  const gameFolder = pane.addFolder({
+    title: 'Game Settings'
+  });
+
+  const game$ = merge(
+    fromBinding$(gameFolder, PARAMS, 'xDimension', { step: 1, min: 1 }),
+    fromBinding$(gameFolder, PARAMS, 'yDimension', { step: 1, min: 1 }),
+    fromBinding$(gameFolder, PARAMS, 'givens', { step: 1, min: 0 }),
+    fromBinding$(gameFolder, PARAMS, 'seed', { step: 1 })
+  );
+  const newGame$ = fromButton$(gameFolder, 'new game');
+  const hintMode$ = fromBinding$(gameFolder, PARAMS, 'hintMode');
+
+  const mainFolder = pane.addFolder({
+    title: 'Main Grid'
+  });
+
+  const mainGrid$ = merge(
+    fromBinding$(mainFolder, PARAMS, 'mainBorderColor'),
+    fromBinding$(mainFolder, PARAMS, 'mainGridBorderWidth', { step: 1, min: 0 })
+  );
+
+  const valueFolder = pane.addFolder({
+    title: 'Value Grid'
+  });
+
+  const valueGrid$ = merge(
+    fromBinding$(valueFolder, PARAMS, 'valueFontSize', { step: 1, min: 1 }),
+    fromBinding$(valueFolder, PARAMS, 'valueFont'),
+    fromBinding$(valueFolder, PARAMS, 'valueFontColor'),
+    fromBinding$(valueFolder, PARAMS, 'valueGridBorderColor'),
+    fromBinding$(valueFolder, PARAMS, 'valueGridBorderWidth', { step: 1, min: 0 }),
+    fromBinding$(valueFolder, PARAMS, 'renderTextBoundingBoxLineWidth', { step: 1, min: 0 }),
+    fromBinding$(valueFolder, PARAMS, 'renderTextBoundingBoxColor')
+  );
+
+  const hintFolder = pane.addFolder({
+    title: 'Hint Grid'
+  });
+
+  const hintGrid$ = merge(
+    fromBinding$(hintFolder, PARAMS, 'hintFontSize', { step: 1, min: 1 }),
+    fromBinding$(hintFolder, PARAMS, 'hintFont'),
+    fromBinding$(hintFolder, PARAMS, 'hintFontColor'),
+    fromBinding$(hintFolder, PARAMS, 'hintGridBorderWidth', { step: 1 }),
+    fromBinding$(hintFolder, PARAMS, 'hintGridBorderColor')
+  );
+
+  const highlightFolder = pane.addFolder({
+    title: 'Highlight Settings'
+  });
+
+  const highlight$ = merge(
+    fromBinding$(highlightFolder, PARAMS, 'highlightColor'),
+    fromBinding$(highlightFolder, PARAMS, 'selectedCellHighlightColor'),
+    fromBinding$(highlightFolder, PARAMS, 'highlightFontColor')
+  );
+
+  const copyConfig$ = fromButton$(pane, 'copy configs');
+
+  // A new game only updates the pane itself, the new seed then reaches the game through the seed binding like any other change
+  const newGameSubscription = newGame$.subscribe(() => {
+    PARAMS.seed = createRandomSeed();
+    pane.refresh();
+  });
+
+  const actionSubscription = merge(
+    merge(general$, mainGrid$, valueGrid$, hintGrid$, highlight$).pipe(
+      map((changes): DebugAction => ['configureBoard', changes])
+    ),
+    game$.pipe(
+      map((changes): DebugAction => ['configureGame', changes])
+    ),
+    hintMode$.pipe(
+      map(({ hintMode }): DebugAction => ['hintMode', hintMode])
+    ),
+    copyConfig$.pipe(
+      map((): DebugAction => ['copyConfig', null])
+    )
+  ).subscribe(subscriber);
+
+  return () => {
+    actionSubscription.unsubscribe();
+    newGameSubscription.unsubscribe();
+    pane.dispose();
+  };
+});
 
 @Component({
   selector: 'hks-page-sudoku',
-  imports: [SudokuBoardComponent],
+  imports: [SudokuBoardComponent, AsyncPipe],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
   hostDirectives: [PageDirective]
 })
 export class PageSudokuComponent {
   private readonly document = inject(DOCUMENT);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  private readonly gameStateConfig = signal({ ...gameSettings, seed: createRandomSeed() });
-  private readonly preConfig = signal(boardSettings);
-  private readonly keyboardSettings = signal(keyboardSettings);
+  private readonly initialState: PageState = {
+    ...createGameState({ ...gameSettings, seed: createRandomSeed() }),
+    boardSettings
+  };
 
-  private readonly keyboardSettings$ = toObservable(this.keyboardSettings).pipe(
+  private readonly keyboardSettings$ = of(keyboardSettings).pipe(
     map(keyBindings => Object.entries(keyBindings))
   );
-
-  private readonly gameState = linkedSignal(() => {
-    const config = this.gameStateConfig();
-    const alphabet = createNumericAlphabet(config.xDimension, config.yDimension);
-    return {
-      boardValues: createSudoku({ dimension: config.xDimension, alphabet, givens: config.givens, seed: config.seed }).puzzle,
-      boardHints: new Array(
-        config.xDimension * config.xDimension * config.xDimension *
-        config.yDimension * config.yDimension * config.yDimension
-      ).fill(''),
-      selectedPosition: {
-        x: 0,
-        y: 0
-      },
-      hintMode: false,
-      alphabet: alphabet
-    };
-  })
-
-  public readonly boardConfig = computed(() => {
-    const gameStateConfig = this.gameStateConfig();
-    const gameState = this.gameState();
-
-    return {
-      ...gameStateConfig,
-      ...this.preConfig(),
-      ...gameState,
-      highlightedCells: getHighlightedCells(gameStateConfig.xDimension, gameState.selectedPosition),
-      matchingCells: getMatchingCells(gameState.boardValues, gameState.selectedPosition)
-    };
-  });
 
   private readonly pressedKeys$ = fromEvent(this.document, 'keydown').pipe(
     filter((ev): ev is KeyboardEvent => ev instanceof KeyboardEvent),
     map(ev => ev.code)
   );
 
-
-  private readonly keys$ = this.pressedKeys$.pipe(
+  private readonly keyActions$ = this.pressedKeys$.pipe(
     withLatestFrom(this.keyboardSettings$),
     map(([code, keyboardSettings]) => keyboardSettings.find(([key]) => key === code)?.[1]),
-    filter(Boolean),
+    filter(Boolean)
+  );
+
+  // Actions triggered from the template, e.g. the value buttons or a click on the board
+  public readonly templateActions$ = new Subject<GameAction>();
+
+  // The debug pane only exists in the browser, not during server side rendering
+  private readonly debugActions$ = this.isBrowser ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
+
+  // Shared, so the state and the effects below do not each create their own debug pane
+  private readonly actions$ = merge(
+    this.keyActions$,
+    this.templateActions$,
+    this.debugActions$
+  ).pipe(
+    share()
+  );
+
+  // Shared and replayed, so the template and the effects below read the same state instead of each running their own reducer
+  private readonly state$ = this.actions$.pipe(
+    filter((action): action is StateAction => action[0] !== 'copyConfig'),
+    scan(pageReducer, this.initialState),
+    startWith(this.initialState),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
+  public readonly boardConfig$ = this.state$.pipe(
+    map(toBoardConfig)
+  );
+
+  private readonly copyConfigEffect = this.actions$.pipe(
+    filter(([type]) => type === 'copyConfig'),
+    withLatestFrom(this.boardConfig$),
     takeUntilDestroyed()
-  ).subscribe(keyAction => this.executeAction(keyAction));
-
-  constructor() {
-    afterNextRender(() => {
-      this.setupDebug();
-    });
-  }
-
-  public set(value: string) {
-    const { xDimension } = this.gameStateConfig();
-
-    this.gameState.update(config => {
-      const selectedValuePosition = config.selectedPosition.y * (xDimension * xDimension) + config.selectedPosition.x;
-      const selectedValue = config.boardValues[selectedValuePosition];
-
-      if (config.hintMode) {
-
-        // If the selected position has a value on it, do not add hints to it, because the player won't be able to see them
-        if (selectedValue !== '') {
-          return config;
-        }
-
-        const setCharacterIndex = config.alphabet.findIndex(character => character === value);
-        if (setCharacterIndex === -1) {
-          return config;
-        }
-
-        const selectedPosition = config.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (config.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
-
-        const newValue = config.boardHints[selectedPosition] === String(value) ? '' : String(value);
-        return {
-          ...config,
-          boardHints: [
-            ...config.boardHints.slice(0, selectedPosition),
-            newValue,
-            ...config.boardHints.slice(selectedPosition + 1)
-          ]
-        };
-      }
-
-      const newValue = selectedValue === String(value) ? '' : String(value);
-      return {
-        ...config,
-        boardValues: [
-          ...config.boardValues.slice(0, selectedValuePosition),
-          newValue,
-          ...config.boardValues.slice(selectedValuePosition + 1)
-        ]
-      };
-    })
-  }
-
-  public updatePosition(position: { x: number, y: number }) {
-    this.gameState.update(config => ({ ...config, selectedPosition: position }));
-  }
-
-  private setupDebug(): void {
-    const PARAMS = this.boardConfig();
-
-    const pane = new Pane();
-
-    const generalFolder = pane.addFolder({
-      title: 'General'
-    });
-
-    generalFolder.addBinding(PARAMS, 'height', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, height: ev.value })));
-    generalFolder.addBinding(PARAMS, 'width', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, width: ev.value })));
-    generalFolder.addBinding(PARAMS, 'clientWidth', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, clientWidth: ev.value })));
-    generalFolder.addBinding(PARAMS, 'clientHeight', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, clientHeight: ev.value })));
-
-
-    generalFolder.addBinding(PARAMS, 'backgroundColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, backgroundColor: ev.value })));
-
-    const gameFolder = pane.addFolder({
-      title: 'Game Settings'
-    });
-
-    gameFolder.addBinding(PARAMS, 'xDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, xDimension: ev.value })));
-    gameFolder.addBinding(PARAMS, 'yDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, yDimension: ev.value })));
-    gameFolder.addBinding(PARAMS, 'givens', { step: 1, min: 0 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, givens: ev.value })));
-    const seedBinding = gameFolder.addBinding(PARAMS, 'seed', { step: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, seed: ev.value })));
-    gameFolder.addButton({ title: 'new game' }).on('click', () => {
-      PARAMS.seed = createRandomSeed();
-      seedBinding.refresh();
-    });
-    gameFolder.addBinding(PARAMS, 'hintMode').on('change', (ev) => this.gameState.update(config => ({ ...config, hintMode: ev.value })));
-
-    const mainFolder = pane.addFolder({
-      title: 'Main Grid'
-    });
-
-    mainFolder.addBinding(PARAMS, 'mainBorderColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, mainBorderColor: ev.value })));
-    mainFolder.addBinding(PARAMS, 'mainGridBorderWidth', { step: 1, min: 0 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, mainGridBorderWidth: ev.value })));
-
-    const valueFolder = pane.addFolder({
-      title: 'Value Grid'
-    });
-
-    valueFolder.addBinding(PARAMS, 'valueFontSize', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, valueFontSize: ev.value })));
-    valueFolder.addBinding(PARAMS, 'valueFont').on('change', (ev) => this.preConfig.update(config => ({ ...config, valueFont: ev.value })));
-    valueFolder.addBinding(PARAMS, 'valueFontColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, valueFontColor: ev.value })));
-    valueFolder.addBinding(PARAMS, 'valueGridBorderColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, valueGridBorderColor: ev.value })));
-    valueFolder.addBinding(PARAMS, 'valueGridBorderWidth', { step: 1, min: 0 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, valueGridBorderWidth: ev.value })));
-    valueFolder.addBinding(PARAMS, 'renderTextBoundingBoxLineWidth', { step: 1, min: 0 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, renderTextBoundingBoxLineWidth: ev.value })));
-    valueFolder.addBinding(PARAMS, 'renderTextBoundingBoxColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, renderTextBoundingBoxColor: ev.value })));
-
-    const hintFolder = pane.addFolder({
-      title: 'Hint Grid'
-    });
-
-    hintFolder.addBinding(PARAMS, 'hintFontSize', { step: 1, min: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, hintFontSize: ev.value })));
-    hintFolder.addBinding(PARAMS, 'hintFont').on('change', (ev) => this.preConfig.update(config => ({ ...config, hintFont: ev.value })));
-    hintFolder.addBinding(PARAMS, 'hintFontColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, hintFontColor: ev.value })));
-    hintFolder.addBinding(PARAMS, 'hintGridBorderWidth', { step: 1 }).on('change', (ev) => this.preConfig.update(config => ({ ...config, hintGridBorderWidth: ev.value })));
-    hintFolder.addBinding(PARAMS, 'hintGridBorderColor').on('change', (ev) => this.preConfig.update(config => ({ ...config, hintGridBorderColor: ev.value })));
-
-    const highlightFolder = pane.addFolder({
-      title: 'Highlight Settings'
-    });
-
-    highlightFolder.addBinding(PARAMS, 'highlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightColor: ev.value })));
-    highlightFolder.addBinding(PARAMS, 'selectedCellHighlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, selectedCellHighlightColor: ev.value })));
-    highlightFolder.addBinding(PARAMS, 'highlightFontColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightFontColor: ev.value })));
-
-    const copyConfigsButton = pane.addButton({
-      title: 'copy configs',
-    });
-
-    copyConfigsButton.on('click', () => navigator.clipboard.writeText(JSON.stringify(this.boardConfig())));
-  }
-
-  private executeAction(keyAction: KeyAction): void {
-    const [type, value] = keyAction;
-
-    switch (type) {
-      case 'set': {
-        this.set(value);
-        return;
-      }
-      case 'move': {
-        this.move(value);
-        return;
-      }
-    }
-  }
-
-  private move(value: MoveDirection) {
-    switch (value) {
-      case 'left':
-        this.moveLeft();
-        return;
-      case 'right':
-        this.moveRight();
-        return;
-      case 'up':
-        this.moveUp();
-        return;
-      case 'down':
-        this.moveDown();
-        return;
-    }
-  }
-
-  private moveLeft(): void {
-    this.gameState.update(gameState => {
-      if (gameState.selectedPosition.x === 0) {
-        return gameState;
-      }
-
-      return {
-        ...gameState,
-        selectedPosition: {
-          ...gameState.selectedPosition,
-          x: gameState.selectedPosition.x - 1
-        }
-      }
-    });
-  }
-
-  private moveRight(): void {
-    const { xDimension } = this.gameStateConfig();
-
-    this.gameState.update(gameState => {
-      if (gameState.selectedPosition.x < (xDimension * xDimension) - 1) {
-        return {
-          ...gameState,
-          selectedPosition: {
-            ...gameState.selectedPosition,
-            x: gameState.selectedPosition.x + 1
-          }
-        }
-      }
-
-      return gameState;
-    });
-  }
-
-  private moveUp(): void {
-    this.gameState.update(gameState => {
-      if (gameState.selectedPosition.y === 0) {
-        return gameState;
-      }
-
-      return {
-        ...gameState,
-        selectedPosition: {
-          ...gameState.selectedPosition,
-          y: gameState.selectedPosition.y - 1
-        }
-      };
-    });
-  }
-
-  private moveDown(): void {
-    const { yDimension } = this.gameStateConfig();
-
-
-    this.gameState.update(gameState => {
-      if (gameState.selectedPosition.y < (yDimension * yDimension) - 1) {
-        return {
-          ...gameState,
-          selectedPosition: {
-            ...gameState.selectedPosition,
-            y: gameState.selectedPosition.y + 1
-          }
-        }
-      }
-
-      return gameState;
-    });
-  }
+  ).subscribe(([, config]) => navigator.clipboard.writeText(JSON.stringify(config)));
 }
-

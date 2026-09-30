@@ -194,3 +194,124 @@ export const createSudoku = (config: { dimension: number, alphabet: string[], gi
 
   return { solution, puzzle };
 }
+
+export type GameSettings = {
+  xDimension: number;
+  yDimension: number;
+  givens: number;
+  seed: number;
+};
+
+export type Game = {
+  boardValues: Board;
+  boardHints: Board;
+  selectedPosition: Position;
+  hintMode: boolean;
+  alphabet: string[];
+};
+
+export type GameState = {
+  settings: GameSettings;
+  game: Game;
+};
+
+export type SetAction = ['set', string];
+
+export type MoveDirection = 'left' | 'right' | 'up' | 'down';
+export type MoveAction = ['move', MoveDirection];
+
+export type SelectAction = ['select', Position];
+export type HintModeAction = ['hintMode', boolean];
+export type ConfigureGameAction = ['configureGame', Partial<GameSettings>];
+
+export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction;
+
+export const createGame = (settings: GameSettings): Game => {
+  const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
+
+  return {
+    boardValues: createSudoku({ dimension: settings.xDimension, alphabet, givens: settings.givens, seed: settings.seed }).puzzle,
+    boardHints: new Array(
+      settings.xDimension * settings.xDimension * settings.xDimension *
+      settings.yDimension * settings.yDimension * settings.yDimension
+    ).fill(''),
+    selectedPosition: {
+      x: 0,
+      y: 0
+    },
+    hintMode: false,
+    alphabet
+  };
+}
+
+export const createGameState = (settings: GameSettings): GameState => ({
+  settings,
+  game: createGame(settings)
+});
+
+const setGameValue = (game: Game, xDimension: number, value: string): Game => {
+  const selectedValuePosition = game.selectedPosition.y * (xDimension * xDimension) + game.selectedPosition.x;
+  const selectedValue = game.boardValues[selectedValuePosition];
+
+  if (game.hintMode) {
+
+    // If the selected position has a value on it, do not add hints to it, because the player won't be able to see them
+    if (selectedValue !== '') {
+      return game;
+    }
+
+    const setCharacterIndex = game.alphabet.findIndex(character => character === value);
+    if (setCharacterIndex === -1) {
+      return game;
+    }
+
+    const selectedPosition = game.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (game.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
+
+    const newValue = game.boardHints[selectedPosition] === value ? '' : value;
+    return {
+      ...game,
+      boardHints: setValue(game.boardHints, selectedPosition, newValue)
+    };
+  }
+
+  const newValue = selectedValue === value ? '' : value;
+  return {
+    ...game,
+    boardValues: setValue(game.boardValues, selectedValuePosition, newValue)
+  };
+}
+
+const clamp = (min: number, max: number) => (value: number) => Math.min(max, Math.max(min, value));
+
+const moveSelection = (position: Position, direction: MoveDirection, xDimension: number): Position => {
+  const clampToBoard = clamp(0, xDimension * xDimension - 1);
+
+  switch (direction) {
+    case 'left':
+      return { ...position, x: clampToBoard(position.x - 1) };
+    case 'right':
+      return { ...position, x: clampToBoard(position.x + 1) };
+    case 'up':
+      return { ...position, y: clampToBoard(position.y - 1) };
+    case 'down':
+      return { ...position, y: clampToBoard(position.y + 1) };
+  }
+}
+
+export const gameReducer = (state: GameState, action: GameAction): GameState => {
+  const [type, value] = action;
+
+  switch (type) {
+    case 'set':
+      return { ...state, game: setGameValue(state.game, state.settings.xDimension, value) };
+    case 'move':
+      return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.settings.xDimension) } };
+    case 'select':
+      return { ...state, game: { ...state.game, selectedPosition: value } };
+    case 'hintMode':
+      return { ...state, game: { ...state.game, hintMode: value } };
+    case 'configureGame':
+      // Changing the game settings starts a new game, the generator is deterministic for a given seed, so this stays pure
+      return createGameState({ ...state.settings, ...value });
+  }
+}
