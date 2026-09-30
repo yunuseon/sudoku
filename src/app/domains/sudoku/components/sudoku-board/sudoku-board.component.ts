@@ -3,7 +3,7 @@ import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { filter, fromEvent, map } from 'rxjs';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
 
-const highlightCells = (context: CanvasRenderingContext2D, selectedX: number, selectedY: number, config: {
+const highlightCells = (context: CanvasRenderingContext2D, highlightedCells: boolean[], selectedX: number, selectedY: number, config: {
   xDimension: number;
   yDimension: number;
   mainGridBorderWidth: number;
@@ -28,48 +28,22 @@ const highlightCells = (context: CanvasRenderingContext2D, selectedX: number, se
     return (mainGridY * mainGridHeight) + (mainGridY + 1) * config.mainGridBorderWidth + (y % config.yDimension) * valueGridHeight
   };
 
-
-  const mainGridX = Math.floor(selectedX / config.xDimension);
-  const mainGridY = Math.floor(selectedY / config.yDimension);
+  const n = config.xDimension * config.xDimension;
 
   context.fillStyle = config.highlightColor;
 
-  for (let y = 0; y < config.yDimension; y++) {
-    for (let x = 0; x < config.xDimension; x++) {
-      context.fillRect(
-        getBoardPixelX(mainGridX * config.xDimension + x),
-        getBoardPixelY(mainGridY * config.yDimension + y),
-        valueGridWidth,
-        valueGridHeight
-      );
-    }
-  }
-
-  for (let x = 0; x < (config.xDimension * config.xDimension); x++) {
-    if (x === selectedX) {
-      continue;
+  highlightedCells.forEach((isHighlighted, i) => {
+    if (!isHighlighted) {
+      return;
     }
 
     context.fillRect(
-      getBoardPixelX(x),
-      getBoardPixelY(selectedY),
+      getBoardPixelX(i % n),
+      getBoardPixelY(Math.floor(i / n)),
       valueGridWidth,
       valueGridHeight
     );
-  }
-
-  for (let y = 0; y < (config.yDimension * config.yDimension); y++) {
-    if (y === selectedY) {
-      continue;
-    }
-    context.fillRect(
-      getBoardPixelX(selectedX),
-      getBoardPixelY(y),
-      valueGridWidth,
-      valueGridHeight
-    );
-  }
-
+  });
 
   context.fillStyle = config.selectedCellHighlightColor;
   context.fillRect(
@@ -143,10 +117,11 @@ const drawLine = (context: CanvasRenderingContext2D, from: { x: number; y: numbe
 }
 
 
-const drawValue = (context: CanvasRenderingContext2D, value: string, selectedValue: string, valueX: number, valueY: number, config: {
+const drawValue = (context: CanvasRenderingContext2D, value: string, isMatching: boolean, isHighlighted: boolean, valueX: number, valueY: number, config: {
   valueFontSize: number;
   valueFont: string;
   valueFontColor: string;
+  highlightFontColor: string;
   renderTextBoundingBoxColor: string;
   renderTextBoundingBoxLineWidth: number;
   xDimension: number;
@@ -174,8 +149,8 @@ const drawValue = (context: CanvasRenderingContext2D, value: string, selectedVal
   const cummulativeMainGridHeight = (Math.floor(valueY / config.yDimension) + 1) * config.mainGridBorderWidth;
 
 
-  context.font = selectedValue === value ? `bold ${config.valueFontSize}px ${config.valueFont}` : `${config.valueFontSize}px ${config.valueFont}`;
-  context.fillStyle = config.valueFontColor;
+  context.font = isMatching ? `bold ${config.valueFontSize}px ${config.valueFont}` : `${config.valueFontSize}px ${config.valueFont}`;
+  context.fillStyle = isHighlighted ? config.highlightFontColor : config.valueFontColor;
   context.textAlign = 'center';
   context.textBaseline = 'top';
 
@@ -318,12 +293,10 @@ export class SudokuBoardComponent {
     const hintGridHeight = valueGridHeight / config.yDimension;
 
 
-    const selectedValue = config.boardValues[config.selectedPosition.y * config.xDimension * config.xDimension + config.selectedPosition.x];
-
     // draw highlight
 
     // highlight selected tile
-    highlightCells(context, config.selectedPosition.x, config.selectedPosition.y, {
+    highlightCells(context, config.highlightedCells, config.selectedPosition.x, config.selectedPosition.y, {
       xDimension: config.xDimension,
       yDimension: config.yDimension,
       mainGridBorderWidth: config.mainGridBorderWidth,
@@ -349,10 +322,11 @@ export class SudokuBoardComponent {
             const val = config.boardValues[boardIndex];
 
             if (val !== '') {
-              drawValue(context, val, selectedValue, valueX, valueY, {
+              drawValue(context, val, config.matchingCells[boardIndex], config.highlightedCells[boardIndex], valueX, valueY, {
                 valueFontSize: config.valueFontSize,
                 valueFont: config.valueFont,
                 valueFontColor: config.valueFontColor,
+                highlightFontColor: config.highlightFontColor,
                 renderTextBoundingBoxColor: config.renderTextBoundingBoxColor,
                 renderTextBoundingBoxLineWidth: config.renderTextBoundingBoxLineWidth,
                 xDimension: config.xDimension,

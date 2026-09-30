@@ -2,12 +2,10 @@ import { afterNextRender, Component, computed, inject, linkedSignal, signal } fr
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
-import { filter, fromEvent, map, tap, withLatestFrom } from 'rxjs';
+import { filter, fromEvent, map, withLatestFrom } from 'rxjs';
 import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-
-const createNumericAlphabet = (n: number, m: number) => new Array(n * m).fill('').map((_, i) => String(i + 1));
-
+import { createNumericAlphabet, createSudoku, getHighlightedCells, getMatchingCells } from '../../logic/sudoku.logic';
 
 type SetAction = ['set', string];
 
@@ -38,6 +36,7 @@ const keyboardSettings: KeyBindings = {
 const gameSettings = {
   "xDimension": 3,
   "yDimension": 3,
+  "givens": 25,
 };
 
 const boardSettings = {
@@ -62,7 +61,11 @@ const boardSettings = {
   "renderTextBoundingBoxColor": "#00ff00",
   "highlightColor": '#18263c',
   "selectedCellHighlightColor": '#030509',
+  "highlightFontColor": '#ff0ff0',
 }
+
+// The only impure part of the game setup, the generator itself is deterministic for a given seed
+const createRandomSeed = () => Math.floor(Math.random() * 2 ** 32);
 
 export type BoardConfig = ReturnType<PageSudokuComponent['boardConfig']>;
 
@@ -74,8 +77,9 @@ export type BoardConfig = ReturnType<PageSudokuComponent['boardConfig']>;
   hostDirectives: [PageDirective]
 })
 export class PageSudokuComponent {
+  private readonly document = inject(DOCUMENT);
 
-  private readonly gameStateConfig = signal(gameSettings);
+  private readonly gameStateConfig = signal({ ...gameSettings, seed: createRandomSeed() });
   private readonly preConfig = signal(boardSettings);
   private readonly keyboardSettings = signal(keyboardSettings);
 
@@ -85,12 +89,9 @@ export class PageSudokuComponent {
 
   private readonly gameState = linkedSignal(() => {
     const config = this.gameStateConfig();
-
+    const alphabet = createNumericAlphabet(config.xDimension, config.yDimension);
     return {
-      boardValues: new Array(
-        config.xDimension * config.xDimension *
-        config.yDimension * config.yDimension
-      ).fill(''),
+      boardValues: createSudoku({ dimension: config.xDimension, alphabet, givens: config.givens, seed: config.seed }).puzzle,
       boardHints: new Array(
         config.xDimension * config.xDimension * config.xDimension *
         config.yDimension * config.yDimension * config.yDimension
@@ -100,21 +101,26 @@ export class PageSudokuComponent {
         y: 0
       },
       hintMode: false,
-      alphabet: createNumericAlphabet(config.xDimension, config.yDimension)
+      alphabet: alphabet
     };
   })
 
-  public readonly boardConfig = computed(() => ({
-    ...this.gameStateConfig(),
-    ...this.preConfig(),
-    ...this.gameState(),
-  }));
+  public readonly boardConfig = computed(() => {
+    const gameStateConfig = this.gameStateConfig();
+    const gameState = this.gameState();
 
-  private readonly document = inject(DOCUMENT);
+    return {
+      ...gameStateConfig,
+      ...this.preConfig(),
+      ...gameState,
+      highlightedCells: getHighlightedCells(gameStateConfig.xDimension, gameState.selectedPosition),
+      matchingCells: getMatchingCells(gameState.boardValues, gameState.selectedPosition)
+    };
+  });
+
   private readonly pressedKeys$ = fromEvent(this.document, 'keydown').pipe(
     filter((ev): ev is KeyboardEvent => ev instanceof KeyboardEvent),
-    map(ev => ev.code),
-    tap(console.log)
+    map(ev => ev.code)
   );
 
 
@@ -202,6 +208,12 @@ export class PageSudokuComponent {
 
     gameFolder.addBinding(PARAMS, 'xDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, xDimension: ev.value })));
     gameFolder.addBinding(PARAMS, 'yDimension', { step: 1, min: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, yDimension: ev.value })));
+    gameFolder.addBinding(PARAMS, 'givens', { step: 1, min: 0 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, givens: ev.value })));
+    const seedBinding = gameFolder.addBinding(PARAMS, 'seed', { step: 1 }).on('change', (ev) => this.gameStateConfig.update(config => ({ ...config, seed: ev.value })));
+    gameFolder.addButton({ title: 'new game' }).on('click', () => {
+      PARAMS.seed = createRandomSeed();
+      seedBinding.refresh();
+    });
     gameFolder.addBinding(PARAMS, 'hintMode').on('change', (ev) => this.gameState.update(config => ({ ...config, hintMode: ev.value })));
 
     const mainFolder = pane.addFolder({
@@ -237,8 +249,9 @@ export class PageSudokuComponent {
       title: 'Highlight Settings'
     });
 
-    highlightFolder.addBinding(PARAMS, 'highlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightColor: ev.value})));
-    highlightFolder.addBinding(PARAMS, 'selectedCellHighlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, selectedCellHighlightColor: ev.value})));
+    highlightFolder.addBinding(PARAMS, 'highlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightColor: ev.value })));
+    highlightFolder.addBinding(PARAMS, 'selectedCellHighlightColor').on('change', ev => this.preConfig.update(config => ({ ...config, selectedCellHighlightColor: ev.value })));
+    highlightFolder.addBinding(PARAMS, 'highlightFontColor').on('change', ev => this.preConfig.update(config => ({ ...config, highlightFontColor: ev.value })));
 
     const copyConfigsButton = pane.addButton({
       title: 'copy configs',
