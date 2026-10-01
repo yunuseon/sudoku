@@ -5,6 +5,7 @@ import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board
 import { SudokuTimelineComponent } from '../../components/sudoku-timeline/sudoku-timeline.component';
 import { formatElapsed } from '../../components/format-elapsed';
 import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
+import { now } from '../../../../core/time/now';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -43,8 +44,6 @@ const keyboardSettings: KeyBindings = {
   'KeyY': ['redo', null],
 };
 
-// unlike Date.now() this cannot jump when the system clock changes
-const now = () => performance.timeOrigin + performance.now();
 
 // emits the elapsed time now and then exactly when the next full second is reached, nothing while paused or stopped
 const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => !isRunning(gameTimer)
