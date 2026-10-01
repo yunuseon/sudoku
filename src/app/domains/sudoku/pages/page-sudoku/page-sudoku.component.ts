@@ -91,6 +91,7 @@ const boardSettings = {
   "solvedOverlayColor": '#213555d9',
   "solvedFontColor": '#f5efe7',
   "timelinePixelsPerSecond": 12,
+  "timelinePlayheadColor": '#3b82f6',
 }
 
 type BoardSettings = typeof boardSettings;
@@ -209,7 +210,8 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
     fromBinding$(gameStateFolder, PARAMS, 'conflictFontColor'),
     fromBinding$(gameStateFolder, PARAMS, 'solvedOverlayColor'),
     fromBinding$(gameStateFolder, PARAMS, 'solvedFontColor'),
-    fromBinding$(gameStateFolder, PARAMS, 'timelinePixelsPerSecond', { min: 1, step: 1 })
+    fromBinding$(gameStateFolder, PARAMS, 'timelinePixelsPerSecond', { min: 1, step: 1 }),
+    fromBinding$(gameStateFolder, PARAMS, 'timelinePlayheadColor')
   );
 
   const copyConfig$ = fromButton$(pane, 'copy configs');

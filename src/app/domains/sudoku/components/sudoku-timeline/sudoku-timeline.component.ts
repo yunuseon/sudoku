@@ -4,30 +4,27 @@ import { animationFrames, EMPTY, fromEvent, map, merge, of, switchMap } from 'rx
 import { elapsed, isRunning, Move, Timer } from '../../logic/sudoku.logic';
 import { now } from '../../../../core/time/now';
 
-type PlacedMove = { x: number; offset: number; elapsed: number };
-
 const padding = 16;
-const markerSpacing = 24;
-const tickInterval = 10000;
 const nowAnchor = 0.75;
+const minLabelDistance = 60;
+const minorTicksPerLabel = 5;
+const labelIntervals = [1, 2, 5, 10, 15, 30, 60, 120, 300].map(seconds => seconds * 1000);
 
-// Moves sit at their time, but never closer than one marker to the previous one. A push shifts everything after it,
-// so the offset of the last move before a point in time also applies to the ticks and the current time.
-const placeMoves = (moves: Move[], pixelsPerSecond: number): PlacedMove[] => moves.reduce<PlacedMove[]>((placed, move) => {
-  const previous = placed.at(-1);
-  const timeX = padding + move.elapsed / 1000 * pixelsPerSecond;
-  const x = Math.max(timeX + (previous?.offset ?? 0), (previous?.x ?? padding) + markerSpacing);
+const labelIntervalFor = (pixelsPerSecond: number) =>
+  labelIntervals.find(interval => interval / 1000 * pixelsPerSecond >= minLabelDistance) ?? labelIntervals[labelIntervals.length - 1];
 
-  return [...placed, { x, offset: x - timeX, elapsed: move.elapsed }];
-}, []);
-
-const positionAt = (placed: PlacedMove[], pixelsPerSecond: number, elapsed: number) =>
-  padding + elapsed / 1000 * pixelsPerSecond + (placed.filter(move => move.elapsed <= elapsed).at(-1)?.offset ?? 0);
+const formatTime = (elapsed: number) => {
+  const seconds = Math.round(elapsed / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 
 @Component({
   selector: 'hks-sudoku-timeline',
   templateUrl: './sudoku-timeline.component.html',
-  styleUrl: './sudoku-timeline.component.scss'
+  styleUrl: './sudoku-timeline.component.scss',
+  host: {
+    '[style.--playhead]': 'playheadColor()'
+  }
 })
 export class SudokuTimelineComponent {
   private readonly host = inject(ElementRef).nativeElement as HTMLElement;
@@ -39,6 +36,7 @@ export class SudokuTimelineComponent {
   public readonly elapsed = input.required<number>();
   public readonly timer = input.required<Timer>();
   public readonly pixelsPerSecond = input.required<number>();
+  public readonly playheadColor = input.required<string>();
 
   public readonly seek = output<number>();
 
@@ -71,14 +69,18 @@ export class SudokuTimelineComponent {
 
     afterRenderEffect(() => {
       const cursor = this.cursor();
-      const placed = placeMoves(this.moves(), this.pixelsPerSecond());
+      const moves = this.moves();
 
-      this.detached = cursor === placed.length ? null : 'seek';
+      this.detached = cursor === moves.length ? null : 'seek';
 
       if (this.detached === 'seek') {
-        this.host.scrollTo({ left: (placed[cursor - 1]?.x ?? padding) - this.host.clientWidth / 2, behavior: 'smooth' });
+        this.host.scrollTo({ left: this.x(moves[cursor - 1]?.elapsed ?? 0) - this.host.clientWidth / 2, behavior: 'smooth' });
       }
     });
+  }
+
+  protected x(elapsed: number) {
+    return padding + elapsed / 1000 * this.pixelsPerSecond();
   }
 
   private followScrollLeft() {
@@ -86,7 +88,7 @@ export class SudokuTimelineComponent {
   }
 
   private showTime(elapsedNow: number) {
-    const x = positionAt(placeMoves(this.moves(), this.pixelsPerSecond()), this.pixelsPerSecond(), elapsedNow);
+    const x = this.x(elapsedNow);
 
     this.nowLine().nativeElement.style.left = `${x}px`;
     this.track().nativeElement.style.minWidth = `${x + this.host.clientWidth * (1 - nowAnchor)}px`;
@@ -96,19 +98,13 @@ export class SudokuTimelineComponent {
     }
   }
 
-  protected layout() {
-    const pixelsPerSecond = this.pixelsPerSecond();
-    const placed = placeMoves(this.moves(), pixelsPerSecond);
+  protected ticks() {
     const end = Math.max(this.elapsed(), this.moves().at(-1)?.elapsed ?? 0) + 60000;
-    const at = (elapsed: number) => positionAt(placed, pixelsPerSecond, elapsed);
+    const tickInterval = labelIntervalFor(this.pixelsPerSecond()) / minorTicksPerLabel;
 
-    return {
-      start: padding,
-      moves: placed.map(move => move.x),
-      ticks: Array.from({ length: Math.floor(end / tickInterval) + 1 }, (_, i) => ({
-        x: at(i * tickInterval),
-        label: i * tickInterval % 60000 === 0 ? `${i * tickInterval / 60000}:00` : null
-      }))
-    };
+    return Array.from({ length: Math.floor(end / tickInterval) + 1 }, (_, i) => ({
+      x: this.x(i * tickInterval),
+      label: i % minorTicksPerLabel === 0 ? formatTime(i * tickInterval) : null
+    }));
   }
 }

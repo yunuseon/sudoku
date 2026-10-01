@@ -17,6 +17,7 @@
       [elapsed]="elapsed"
       [timer]="config.timer"
       [pixelsPerSecond]="config.timelinePixelsPerSecond"
+      [playheadColor]="config.timelinePlayheadColor"
       (seek)="templateActions$.next(['seek', $event])" />
 
     <div class="board-area" (hksResize)="resize$.next($event)">

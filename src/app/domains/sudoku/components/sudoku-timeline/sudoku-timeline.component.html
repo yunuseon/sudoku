@@ -1,32 +1,27 @@
-@let placed = layout();
-
 <div class="track" #track>
-  <span class="axis"></span>
+  <div class="ruler">
+    @for (tick of ticks(); track $index) {
+      <span class="tick" [class.major]="tick.label !== null" [style.left.px]="tick.x">
+        @if (tick.label !== null) {
+          <span class="label">{{ tick.label }}</span>
+        }
+      </span>
+    }
+  </div>
 
-  @for (tick of placed.ticks; track $index) {
-    <span class="tick" [class.major]="tick.label !== null" [style.left.px]="tick.x">
-      @if (tick.label !== null) {
-        <span class="label">{{ tick.label }}</span>
-      }
-    </span>
-  }
+  <div class="lane">
+    <button class="move start" [class.current]="cursor() === 0" [style.left.px]="x(0)" (click)="seek.emit(0)"></button>
 
-  <button class="move start" [class.current]="cursor() === 0" [style.left.px]="placed.start" (click)="seek.emit(0)">
-    <span class="dot"></span>
-  </button>
-
-  @for (move of moves(); track $index; let i = $index) {
-    <button
-      class="move"
-      [class.hint]="move.kind === 'hint'"
-      [class.undone]="i >= cursor()"
-      [class.current]="i === cursor() - 1"
-      [style.left.px]="placed.moves[i]"
-      (click)="seek.emit(i + 1)">
-      <span class="value">{{ move.value || '×' }}</span>
-      <span class="dot"></span>
-    </button>
-  }
+    @for (move of moves(); track $index; let i = $index) {
+      <button
+        class="move"
+        [class.hint]="move.kind === 'hint'"
+        [class.undone]="i >= cursor()"
+        [class.current]="i === cursor() - 1"
+        [style.left.px]="x(move.elapsed)"
+        (click)="seek.emit(i + 1)">{{ move.value || '×' }}</button>
+    }
+  </div>
 
   <span class="now" #now></span>
 </div>
