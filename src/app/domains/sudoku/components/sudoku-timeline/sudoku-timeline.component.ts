@@ -1,11 +1,15 @@
 import { afterRenderEffect, Component, ElementRef, inject, input, output, viewChild } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { animationFrames, EMPTY, fromEvent, map, merge, of, switchMap } from 'rxjs';
-import { elapsed, isRunning, Move, Timer } from '../../logic/sudoku.logic';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { animationFrames, EMPTY, fromEvent } from 'rxjs';
+import { elapsed, Move, Timer } from '../../logic/sudoku.logic';
 import { now } from '../../../../core/time/now';
 
 const padding = 16;
-const nowAnchor = 0.75;
+const playheadInset = 12;
+const dragThreshold = 6;
+const friction = 0.95;
+const maxVelocity = 4;
+const seekEasing = 0.2;
 const minLabelDistance = 60;
 const minorTicksPerLabel = 5;
 const labelIntervals = [1, 2, 5, 10, 15, 30, 60, 120, 300].map(seconds => seconds * 1000);
@@ -29,7 +33,7 @@ const formatTime = (elapsed: number) => {
 export class SudokuTimelineComponent {
   private readonly host = inject(ElementRef).nativeElement as HTMLElement;
   private readonly track = viewChild.required<ElementRef<HTMLElement>>('track');
-  private readonly nowLine = viewChild.required<ElementRef<HTMLElement>>('now');
+  private readonly playhead = viewChild.required<ElementRef<HTMLElement>>('playhead');
 
   public readonly moves = input.required<Move[]>();
   public readonly cursor = input.required<number>();
@@ -40,41 +44,67 @@ export class SudokuTimelineComponent {
 
   public readonly seek = output<number>();
 
-  // view state only: null while the timeline keeps the current time in view, otherwise why it stopped
-  private detached: 'user' | 'seek' | null = null;
+  // View state only, changed every frame without change detection. viewX is the track position under the playhead:
+  // it follows the current time, or stays put while the user looks back.
+  private viewX = 0;
+  private following = true;
+  private velocity = 0;
+  private seekTarget: number | null = null;
+  private pointer: { startX: number; lastX: number; lastTime: number; dragging: boolean } | null = null;
+  private lastFrameTime: number | null = null;
 
   constructor() {
-    const userScroll$ = merge(
-      fromEvent(this.host, 'pointerdown'),
-      fromEvent(this.host, 'wheel'),
-      fromEvent(this.host, 'touchstart')
-    );
+    const frames$ = typeof requestAnimationFrame === 'undefined' ? EMPTY : animationFrames();
 
-    userScroll$.pipe(takeUntilDestroyed()).subscribe(() => this.detached = 'user');
+    frames$.pipe(takeUntilDestroyed()).subscribe(({ elapsed: frameTime }) => this.frame(frameTime));
 
-    // only a user can scroll back to the current time, a seek scrolls on its own
-    fromEvent(this.host, 'scroll').pipe(takeUntilDestroyed()).subscribe(() => {
-      if (this.detached === 'user' && this.host.scrollLeft >= this.followScrollLeft() - 4) {
-        this.detached = null;
-      }
+    fromEvent<PointerEvent>(this.host, 'pointerdown').pipe(takeUntilDestroyed()).subscribe(event => {
+      this.pointer = { startX: event.clientX, lastX: event.clientX, lastTime: event.timeStamp, dragging: false };
+      this.velocity = 0;
+      this.seekTarget = null;
     });
 
-    // a display clock for smooth scrolling, it never goes through the game state
-    toObservable(this.timer).pipe(
-      switchMap(timer => typeof requestAnimationFrame === 'undefined'
-        ? EMPTY
-        : isRunning(timer) ? animationFrames().pipe(map(() => elapsed(timer, now()))) : of(elapsed(timer, now()))),
-      takeUntilDestroyed()
-    ).subscribe(elapsedNow => this.showTime(elapsedNow));
+    fromEvent<PointerEvent>(this.host, 'pointermove').pipe(takeUntilDestroyed()).subscribe(event => {
+      const pointer = this.pointer;
+      if (pointer === null) {
+        return;
+      }
+
+      // only a real drag captures the pointer, so a tap still reaches the move it was on
+      if (!pointer.dragging && Math.abs(event.clientX - pointer.startX) > dragThreshold) {
+        pointer.dragging = true;
+        this.host.setPointerCapture(event.pointerId);
+      }
+
+      if (pointer.dragging) {
+        const dx = event.clientX - pointer.lastX;
+        this.scrollBy(-dx);
+        this.velocity = Math.max(-maxVelocity, Math.min(maxVelocity, -dx / Math.max(1, event.timeStamp - pointer.lastTime)));
+      }
+
+      pointer.lastX = event.clientX;
+      pointer.lastTime = event.timeStamp;
+    });
+
+    fromEvent(this.host, 'pointerup').pipe(takeUntilDestroyed()).subscribe(() => this.pointer = null);
+    fromEvent(this.host, 'pointercancel').pipe(takeUntilDestroyed()).subscribe(() => this.pointer = null);
+
+    fromEvent<WheelEvent>(this.host, 'wheel', { passive: false }).pipe(takeUntilDestroyed()).subscribe(event => {
+      event.preventDefault();
+      this.seekTarget = null;
+      this.scrollBy(event.deltaX || event.deltaY);
+    });
 
     afterRenderEffect(() => {
       const cursor = this.cursor();
       const moves = this.moves();
 
-      this.detached = cursor === moves.length ? null : 'seek';
-
-      if (this.detached === 'seek') {
-        this.host.scrollTo({ left: this.x(moves[cursor - 1]?.elapsed ?? 0) - this.host.clientWidth / 2, behavior: 'smooth' });
+      if (cursor === moves.length) {
+        this.following = true;
+        this.seekTarget = null;
+      } else {
+        this.following = false;
+        this.seekTarget = this.x(moves[cursor - 1]?.elapsed ?? 0) + this.playheadX() - this.host.clientWidth / 2;
       }
     });
   }
@@ -83,23 +113,43 @@ export class SudokuTimelineComponent {
     return padding + elapsed / 1000 * this.pixelsPerSecond();
   }
 
-  private followScrollLeft() {
-    return parseFloat(this.nowLine().nativeElement.style.left || '0') - this.host.clientWidth * nowAnchor;
+  private playheadX() {
+    return this.host.clientWidth - playheadInset;
   }
 
-  private showTime(elapsedNow: number) {
-    const x = this.x(elapsedNow);
+  private scrollBy(dx: number) {
+    this.following = false;
+    this.viewX += dx;
+  }
 
-    this.nowLine().nativeElement.style.left = `${x}px`;
-    this.track().nativeElement.style.minWidth = `${x + this.host.clientWidth * (1 - nowAnchor)}px`;
+  private frame(frameTime: number) {
+    const nowX = this.x(elapsed(this.timer(), now()));
+    const minX = Math.min(nowX, this.playheadX());
+    const dt = frameTime - (this.lastFrameTime ?? frameTime);
+    this.lastFrameTime = frameTime;
 
-    if (this.detached === null) {
-      this.host.scrollLeft = x - this.host.clientWidth * nowAnchor;
+    if (this.seekTarget !== null) {
+      this.viewX += (this.seekTarget - this.viewX) * seekEasing;
+    } else if (this.pointer === null && this.velocity !== 0) {
+      this.viewX += this.velocity * dt;
+      this.velocity *= Math.pow(friction, dt / 16);
+      this.velocity = Math.abs(this.velocity) < 0.01 ? 0 : this.velocity;
     }
+
+    if (this.following || this.viewX >= nowX) {
+      this.following = true;
+      this.viewX = nowX;
+    }
+
+    this.viewX = Math.max(minX, this.viewX);
+
+    const offset = this.playheadX() - this.viewX;
+    this.track().nativeElement.style.transform = `translateX(${offset}px)`;
+    this.playhead().nativeElement.style.transform = `translateX(${offset + nowX}px)`;
   }
 
   protected ticks() {
-    const end = Math.max(this.elapsed(), this.moves().at(-1)?.elapsed ?? 0) + 60000;
+    const end = Math.max(this.elapsed(), this.moves().at(-1)?.elapsed ?? 0) + 2000;
     const tickInterval = labelIntervalFor(this.pixelsPerSecond()) / minorTicksPerLabel;
 
     return Array.from({ length: Math.floor(end / tickInterval) + 1 }, (_, i) => ({

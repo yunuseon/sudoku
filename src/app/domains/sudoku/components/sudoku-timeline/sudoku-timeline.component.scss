@@ -1,13 +1,9 @@
 :host {
+  position: relative;
   display: block;
-  overflow-x: auto;
-  scrollbar-width: none;
-  border-radius: 8px;
+  overflow: hidden;
+  touch-action: none;
   background: rgb(0 0 0 / 20%);
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 $ruler: 22px;
@@ -16,6 +12,7 @@ $lane: 32px;
 .track {
   position: relative;
   height: $ruler + $lane;
+  will-change: transform;
 }
 
 .ruler {
@@ -51,7 +48,6 @@ $lane: 32px;
 .lane {
   position: relative;
   height: $lane;
-  background: rgb(255 255 255 / 4%);
 }
 
 .move {
@@ -96,14 +92,16 @@ $lane: 32px;
   }
 }
 
-.now {
+.playhead {
   position: absolute;
   top: $ruler;
   bottom: 0;
+  left: 0;
   z-index: 2;
+  will-change: transform;
   width: 2px;
+  margin-left: -1px;
   background: var(--playhead);
-  transform: translateX(-50%);
   pointer-events: none;
 
   &::before {

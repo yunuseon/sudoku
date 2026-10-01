@@ -1,13 +1,16 @@
 .game {
+  --gutter-left: max(12px, env(safe-area-inset-left));
+  --gutter-right: max(12px, env(safe-area-inset-right));
+
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding:
     max(12px, env(safe-area-inset-top))
-    max(12px, env(safe-area-inset-right))
+    var(--gutter-right)
     max(12px, env(safe-area-inset-bottom))
-    max(12px, env(safe-area-inset-left));
+    var(--gutter-left);
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, sans-serif;
@@ -16,6 +19,13 @@
     width: 100%;
     max-width: 40rem;
     align-self: center;
+  }
+
+  > hks-sudoku-timeline {
+    width: auto;
+    max-width: none;
+    align-self: stretch;
+    margin-inline: calc(-1 * var(--gutter-left)) calc(-1 * var(--gutter-right));
   }
 }
 
