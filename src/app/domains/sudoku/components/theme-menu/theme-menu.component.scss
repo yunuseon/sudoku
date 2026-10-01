@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.preview {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 12px 0;
+  background: var(--background);
+}
+
+.group {
+  margin-top: 16px;
+  padding: 4px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+
+  h3 {
+    margin: 10px 0 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  hks-theme-field + hks-theme-field {
+    border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 0 12px;
+}
+
+.preset {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  border: 2px solid;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  .dots {
+    display: flex;
+    gap: 4px;
+
+    span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  }
+}

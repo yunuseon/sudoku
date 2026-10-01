@@ -1,0 +1,33 @@
+<div class="preview">
+  <canvas hks-sudoku-board [config]="preview()"></canvas>
+</div>
+
+<section class="group">
+  <h3>Presets</h3>
+  <div class="presets">
+    @for (preset of presets; track preset.name) {
+      <button
+        class="preset"
+        [style.background]="preset.settings.backgroundColor"
+        [style.color]="preset.settings.valueFontColor"
+        [style.border-color]="preset.settings.mainBorderColor"
+        (click)="themeChange.emit(preset.settings)">
+        <span class="dots">
+          <span [style.background]="preset.settings.enteredValueFontColor"></span>
+          <span [style.background]="preset.settings.highlightFontColor"></span>
+          <span [style.background]="preset.settings.conflictFontColor"></span>
+        </span>
+        {{ preset.name }}
+      </button>
+    }
+  </div>
+</section>
+
+@for (group of groups; track group.title) {
+  <section class="group">
+    <h3>{{ group.title }}</h3>
+    @for (field of group.fields; track field.key) {
+      <hks-theme-field [field]="field" [value]="settings()[field.key]" (valueChange)="changeField(field.key, $event)" />
+    }
+  </section>
+}

@@ -5,6 +5,8 @@ import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board
 import { SudokuTimelineComponent } from '../../components/sudoku-timeline/sudoku-timeline.component';
 import { formatElapsed } from '../../components/format-elapsed';
 import { type Level, levels } from '../../logic/difficulty';
+import { BoardSettings, boardSettings, createSampleState } from '../../theme/theme';
+import { ThemeMenuComponent } from '../../components/theme-menu/theme-menu.component';
 import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
 import { now } from '../../../../core/time/now';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
@@ -62,40 +64,7 @@ const gameSettings = {
   "level": 'medium' as Level,
 };
 
-const boardSettings = {
-  "height": 1000,
-  "width": 1000,
-  "clientWidth": 600,
-  "clientHeight": 600,
-  "pixelRatio": 1,
-  "backgroundColor": "#213555",
-  "cellPaddingRatio": 0.33,
-  "mainBorderColor": "#d8c4b6",
-  "mainGridBorderWidth": 12,
-  "valueFont": "system-ui",
-  "valueFontColor": "#f5efe7",
-  "enteredValueFontColor": "#8ec5ff",
-  "valueGridBorderColor": "#3e5879",
-  "valueGridBorderWidth": 4,
-  "hintFont": "system-ui",
-  "hintFontColor": "#d8c4b6",
-  "hintGridBorderColor": "#eac0c0",
-  "hintGridBorderWidth": 0,
-  "renderTextBoundingBoxLineWidth": 0,
-  "renderTextBoundingBoxColor": "#00ff00",
-  "highlightColor": '#18263c',
-  "selectedCellHighlightColor": '#030509',
-  "highlightFontColor": '#ff0ff0',
-  "enteredHighlightFontColor": '#ff9cf7',
-  "showConflicts": true,
-  "conflictFontColor": '#ff5c5c',
-  "solvedOverlayColor": '#213555d9',
-  "solvedFontColor": '#f5efe7',
-  "timelinePixelsPerSecond": 12,
-  "timelinePlayheadColor": '#3b82f6',
-}
 
-type BoardSettings = typeof boardSettings;
 
 const createRandomSeed = () => Math.floor(Math.random() * 2 ** 32);
 
@@ -106,6 +75,8 @@ type TimedAction<A> = [A, number];
 const pageReducer = (state: PageState, [action, time]: TimedAction<StateAction>): PageState => action[0] === 'configureBoard'
   ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
   : { ...state, ...gameReducer(state, action, time) };
+
+const previewSize = 220;
 
 // at most 9 symbols per row, spread evenly over the rows
 const padColumns = (symbols: number) => Math.ceil(symbols / Math.ceil(symbols / 9));
@@ -246,7 +217,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
 
 @Component({
   selector: 'hks-page-sudoku',
-  imports: [SudokuBoardComponent, SudokuTimelineComponent, AsyncPipe, ResizeDirective],
+  imports: [SudokuBoardComponent, SudokuTimelineComponent, ThemeMenuComponent, AsyncPipe, ResizeDirective],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
   hostDirectives: [PageDirective]
@@ -289,6 +260,12 @@ export class PageSudokuComponent {
     })
   );
 
+  public readonly themeChanges$ = new Subject<Partial<BoardSettings>>();
+
+  private readonly themeActions$ = this.themeChanges$.pipe(
+    map((settings): ConfigureBoardAction => ['configureBoard', settings])
+  );
+
   private readonly debugActions$ = this.isBrowser && isDevMode() ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
 
   private readonly actions$ = merge(
@@ -296,6 +273,7 @@ export class PageSudokuComponent {
     this.templateActions$,
     this.newGameActions$,
     this.resizeActions$,
+    this.themeActions$,
     this.debugActions$
   ).pipe(
     map((action): TimedAction<PageAction> => [action, now()]),
@@ -324,6 +302,12 @@ export class PageSudokuComponent {
 
   public readonly boardConfig$ = this.state$.pipe(
     map(toBoardConfig)
+  );
+
+  private readonly sampleState = createSampleState();
+
+  public readonly previewConfig$ = this.state$.pipe(
+    map(state => ({ ...toBoardConfig({ ...this.sampleState, boardSettings: state.boardSettings }), clientWidth: previewSize, clientHeight: previewSize }))
   );
 
   private readonly copyConfigEffect = this.actions$.pipe(

@@ -38,7 +38,13 @@
 
 .bar-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+
+  button {
+    min-height: 40px;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
 }
 
 .status {
@@ -55,6 +61,40 @@
 .level {
   font-size: 0.85rem;
   opacity: 0.6;
+}
+
+.theme-sheet {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  border: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, sans-serif;
+
+  > * {
+    max-width: 40rem;
+    margin-inline: auto;
+  }
+}
+
+.sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  h2 {
+    font-size: 1.3rem;
+  }
 }
 
 .level-picker {
@@ -128,12 +168,12 @@ button {
   padding: 0 16px;
   border: none;
   border-radius: 10px;
-  background: rgb(255 255 255 / 8%);
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
   color: var(--foreground);
   cursor: pointer;
 
   &:active {
-    background: rgb(255 255 255 / 18%);
+    background: color-mix(in srgb, var(--foreground) 20%, transparent);
   }
 
   &.active {

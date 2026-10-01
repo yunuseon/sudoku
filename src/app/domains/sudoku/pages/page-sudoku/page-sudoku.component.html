@@ -10,9 +10,20 @@
         @if (!isStopped(config.timer)) {
           <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
         }
+        <button popovertarget="theme-menu">theme</button>
         <button popovertarget="level-picker">new game</button>
       </div>
     </header>
+
+    <div id="theme-menu" class="theme-sheet" popover>
+      <div class="sheet-bar">
+        <h2>Theme</h2>
+        <button popovertarget="theme-menu" popovertargetaction="hide">done</button>
+      </div>
+      @if (previewConfig$ | async; as preview) {
+        <hks-theme-menu [settings]="config" [preview]="preview" (themeChange)="themeChanges$.next($event)" />
+      }
+    </div>
 
     <div id="level-picker" class="level-picker" popover>
       @for (level of levels; track level) {

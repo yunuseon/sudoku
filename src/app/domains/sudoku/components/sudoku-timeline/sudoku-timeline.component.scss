@@ -3,7 +3,7 @@
   display: block;
   overflow: hidden;
   touch-action: none;
-  background: rgb(0 0 0 / 20%);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
 }
 
 $ruler: 22px;
@@ -27,7 +27,7 @@ $lane: 32px;
   left: 0;
   right: 0;
   height: 1px;
-  background: rgb(255 255 255 / 15%);
+  background: color-mix(in srgb, var(--foreground) 15%, transparent);
 }
 
 .tick {
@@ -35,11 +35,11 @@ $lane: 32px;
   bottom: 0;
   width: 1px;
   height: 4px;
-  background: rgb(255 255 255 / 25%);
+  background: color-mix(in srgb, var(--foreground) 25%, transparent);
 
   &.major {
     height: 7px;
-    background: rgb(255 255 255 / 45%);
+    background: color-mix(in srgb, var(--foreground) 45%, transparent);
   }
 
   .label {
@@ -47,7 +47,7 @@ $lane: 32px;
     bottom: 8px;
     font-size: 0.6rem;
     line-height: 1;
-    color: rgb(255 255 255 / 55%);
+    color: color-mix(in srgb, var(--foreground) 55%, transparent);
     font-variant-numeric: tabular-nums;
     transform: translateX(-50%);
     white-space: nowrap;
@@ -67,7 +67,7 @@ $lane: 32px;
   padding: 0 4px;
   border: none;
   border-radius: 5px;
-  background: rgb(255 255 255 / 12%);
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
   color: var(--foreground);
   font-size: 0.75rem;
   line-height: 20px;
