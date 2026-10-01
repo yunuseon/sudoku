@@ -1,4 +1,4 @@
-import { Component, inject, NgZone, PLATFORM_ID, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, PLATFORM_ID, DOCUMENT } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
@@ -7,7 +7,6 @@ import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
-import { runOutsideAngular } from '../../../../core/rxjs/run-outside-angular';
 
 type KeyAction = SetAction | MoveAction | TogglePauseAction;
 
@@ -217,13 +216,11 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   imports: [SudokuBoardComponent, AsyncPipe],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
-  changeDetection: ChangeDetectionStrategy.Eager,
   hostDirectives: [PageDirective]
 })
 export class PageSudokuComponent {
   private readonly document = inject(DOCUMENT);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  private readonly zone = inject(NgZone);
 
   private readonly initialState: PageState = {
     ...createGameState({ ...gameSettings, seed: createRandomSeed() }, now()),
@@ -272,7 +269,7 @@ export class PageSudokuComponent {
   public readonly elapsed$ = this.state$.pipe(
     map(state => state.game.timer),
     distinctUntilChanged(),
-    switchMap(gameTimer => this.isBrowser ? elapsedSeconds$(gameTimer).pipe(runOutsideAngular(this.zone)) : of(elapsed(gameTimer, now())))
+    switchMap(gameTimer => this.isBrowser ? elapsedSeconds$(gameTimer) : of(elapsed(gameTimer, now())))
   );
 
   public readonly boardConfig$ = this.state$.pipe(

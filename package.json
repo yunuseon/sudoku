@@ -24,8 +24,7 @@
     "express": "^4.18.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "tweakpane": "^4.0.5",
-    "zone.js": "~0.15.0"
+    "tweakpane": "^4.0.5"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^22.2.1",

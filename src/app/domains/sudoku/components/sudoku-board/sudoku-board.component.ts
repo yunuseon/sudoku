@@ -1,4 +1,4 @@
-import { afterRenderEffect, Component, ElementRef, inject, input, ChangeDetectionStrategy } from '@angular/core';
+import { afterRenderEffect, Component, ElementRef, inject, input } from '@angular/core';
 import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { filter, fromEvent, map } from 'rxjs';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
@@ -216,7 +216,6 @@ const drawSymbol = (context: CanvasRenderingContext2D, symbol: string, center: {
   imports: [],
   templateUrl: './sudoku-board.component.html',
   styleUrl: './sudoku-board.component.scss',
-  changeDetection: ChangeDetectionStrategy.Eager,
   host: {
     '[attr.width]': 'config().width',
     '[attr.height]': 'config().height',
