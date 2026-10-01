@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs';
 import { BindingParams, FolderApi, TpChangeEvent } from 'tweakpane';
 
-// The binding is added right away, so the order in the pane follows the order of the calls and not of the subscriptions
+// Added right away, so the pane order follows the calls and not the subscriptions
 export const fromBinding$ = <O extends Record<string, any>, K extends keyof O & string>(container: FolderApi, params: O, key: K, options?: BindingParams): Observable<Pick<O, K>> => {
   const binding = container.addBinding(params, key, options);
 

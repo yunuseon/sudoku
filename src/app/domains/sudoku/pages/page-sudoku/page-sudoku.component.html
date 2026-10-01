@@ -1,6 +1,5 @@
 <p>page-sudoku works!</p>
 
-<!-- boardConfig$ emits its initial state synchronously, the @if only narrows the async pipe's null away -->
 @if (boardConfig$ | async; as config) {
   <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
   <div>

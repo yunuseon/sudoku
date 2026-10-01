@@ -95,10 +95,9 @@ export const getMatchingCells = (board: Board, selectedPosition: Position) => {
   return board.map(value => value !== '' && value === selectedValue);
 }
 
-// Random numbers are threaded through as a seed, so the same seed always yields the same result
 type Random<T> = (seed: number) => [T, number];
 
-// mulberry32, returns a number in [0, 1) and the next seed
+// mulberry32
 const random: Random<number> = seed => {
   const nextSeed = (seed + 0x6D2B79F5) | 0;
   const a = Math.imul(nextSeed ^ (nextSeed >>> 15), 1 | nextSeed);
@@ -107,7 +106,6 @@ const random: Random<number> = seed => {
   return [((b ^ (b >>> 14)) >>> 0) / 4294967296, nextSeed];
 }
 
-// Fisher-Yates
 const shuffle = <T>(items: T[]): Random<T[]> => seed => items.reduceRight<[T[], number]>(([shuffled, currentSeed], _, i) => {
   const [r, nextSeed] = random(currentSeed);
   const j = Math.floor(r * (i + 1));
@@ -119,7 +117,6 @@ const setValue = (board: Board, position: number, value: string): Board => board
 
 const getCandidates = (board: Board, position: number, alphabet: string[]) => alphabet.filter(value => checkRules(ruleSetSudoku)(board, position, value));
 
-// The empty position with the fewest candidates keeps the search tree small
 const getMostConstrainedPosition = (board: Board, alphabet: string[]) => board
   .map((value, position) => ({ value, position }))
   .filter(({ value }) => value === '')
@@ -128,7 +125,6 @@ const getMostConstrainedPosition = (board: Board, alphabet: string[]) => board
 
 const range = (length: number) => new Array(length).fill(0).map((_, i) => i);
 
-// Shuffles the bands (or stacks) and the lines within each of them, so the sudoku rules stay intact
 const shuffleLines = (dimension: number): Random<number[]> => seed => {
   const [bands, bandSeed] = shuffle(range(dimension))(seed);
 
@@ -138,7 +134,7 @@ const shuffleLines = (dimension: number): Random<number[]> => seed => {
   }, [[], bandSeed]);
 }
 
-// A valid solved board, every row is the previous one shifted, see https://en.wikipedia.org/wiki/Mathematics_of_Sudoku
+// see https://en.wikipedia.org/wiki/Mathematics_of_Sudoku
 const patternIndex = (dimension: number) => (row: number, column: number) =>
   (dimension * (row % dimension) + Math.floor(row / dimension) + column) % (dimension * dimension);
 
@@ -152,7 +148,6 @@ const createSolution = (dimension: number, alphabet: string[]): Random<Board> =>
   return [board, nextSeed];
 }
 
-// Counts solutions, but stops as soon as `limit` is reached
 const countSolutions = (board: Board, alphabet: string[], limit: number): number => {
   const next = getMostConstrainedPosition(board, alphabet);
 
@@ -165,7 +160,6 @@ const countSolutions = (board: Board, alphabet: string[], limit: number): number
 
 const hasUniqueSolution = (board: Board, alphabet: string[]) => countSolutions(board, alphabet, 2) === 1;
 
-// Removes values in random order, as long as the puzzle stays uniquely solvable and has more than `givens` values
 const carvePuzzle = (solution: Board, alphabet: string[], givens: number): Random<Board> => seed => {
   const [positions, nextSeed] = shuffle(solution.map((_, i) => i))(seed);
 
@@ -203,6 +197,7 @@ export type GameSettings = {
 };
 
 export type Game = {
+  settings: GameSettings;
   boardValues: Board;
   boardHints: Board;
   selectedPosition: Position;
@@ -230,6 +225,7 @@ export const createGame = (settings: GameSettings): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
 
   return {
+    settings,
     boardValues: createSudoku({ dimension: settings.xDimension, alphabet, givens: settings.givens, seed: settings.seed }).puzzle,
     boardHints: new Array(
       settings.xDimension * settings.xDimension * settings.xDimension *
@@ -243,6 +239,9 @@ export const createGame = (settings: GameSettings): Game => {
     alphabet
   };
 }
+
+export const isPlayable = (settings: GameSettings) =>
+  Number.isInteger(settings.xDimension) && settings.xDimension >= 1 && settings.xDimension === settings.yDimension;
 
 export const createGameState = (settings: GameSettings): GameState => ({
   settings,
@@ -303,15 +302,16 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 
   switch (type) {
     case 'set':
-      return { ...state, game: setGameValue(state.game, state.settings.xDimension, value) };
+      return { ...state, game: setGameValue(state.game, state.game.settings.xDimension, value) };
     case 'move':
-      return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.settings.xDimension) } };
+      return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.game.settings.xDimension) } };
     case 'select':
       return { ...state, game: { ...state.game, selectedPosition: value } };
     case 'hintMode':
       return { ...state, game: { ...state.game, hintMode: value } };
-    case 'configureGame':
-      // Changing the game settings starts a new game, the generator is deterministic for a given seed, so this stays pure
-      return createGameState({ ...state.settings, ...value });
+    case 'configureGame': {
+      const settings = { ...state.settings, ...value };
+      return { settings, game: isPlayable(settings) ? createGame(settings) : state.game };
+    }
   }
 }

@@ -49,14 +49,13 @@ const boardSettings = {
   "clientWidth": 600,
   "clientHeight": 600,
   "backgroundColor": "#213555",
+  "cellPaddingRatio": 0.33,
   "mainBorderColor": "#d8c4b6",
   "mainGridBorderWidth": 12,
-  "valueFontSize": 50,
   "valueFont": "system-ui",
   "valueFontColor": "#f5efe7",
   "valueGridBorderColor": "#3e5879",
   "valueGridBorderWidth": 4,
-  "hintFontSize": 21,
   "hintFont": "system-ui",
   "hintFontColor": "#d8c4b6",
   "hintGridBorderColor": "#eac0c0",
@@ -70,29 +69,26 @@ const boardSettings = {
 
 type BoardSettings = typeof boardSettings;
 
-// The only impure part of the game setup, the generator itself is deterministic for a given seed
 const createRandomSeed = () => Math.floor(Math.random() * 2 ** 32);
 
 type PageState = GameState & { boardSettings: BoardSettings };
 
-// Board settings only concern the view, everything else is handled by the game reducer
 const pageReducer = (state: PageState, action: StateAction): PageState => action[0] === 'configureBoard'
   ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
   : { ...state, ...gameReducer(state, action) };
 
 const toBoardConfig = (state: PageState) => ({
-  ...state.settings,
+  ...state.game.settings,
   ...state.boardSettings,
   ...state.game,
-  highlightedCells: getHighlightedCells(state.settings.xDimension, state.game.selectedPosition),
+  highlightedCells: getHighlightedCells(state.game.settings.xDimension, state.game.selectedPosition),
   matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition)
 });
 
 export type BoardConfig = ReturnType<typeof toBoardConfig>;
 
-// Tweakpane is imperative, so its setup is wrapped in an observable: subscribing creates the pane and emits its changes as actions, unsubscribing disposes it
 const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new Observable(subscriber => {
-  // Tweakpane writes into the object it is bound to, so it gets its own copy instead of the config from the state
+  // Tweakpane writes into the bound object, so it must not be the state
   const PARAMS = { ...config };
 
   const pane = new Pane();
@@ -106,7 +102,8 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
     fromBinding$(generalFolder, PARAMS, 'width', { step: 1, min: 1 }),
     fromBinding$(generalFolder, PARAMS, 'clientWidth', { step: 1, min: 1 }),
     fromBinding$(generalFolder, PARAMS, 'clientHeight', { step: 1, min: 1 }),
-    fromBinding$(generalFolder, PARAMS, 'backgroundColor')
+    fromBinding$(generalFolder, PARAMS, 'backgroundColor'),
+    fromBinding$(generalFolder, PARAMS, 'cellPaddingRatio', { min: 0, max: 0.49, step: 0.01 })
   );
 
   const gameFolder = pane.addFolder({
@@ -136,7 +133,6 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   });
 
   const valueGrid$ = merge(
-    fromBinding$(valueFolder, PARAMS, 'valueFontSize', { step: 1, min: 1 }),
     fromBinding$(valueFolder, PARAMS, 'valueFont'),
     fromBinding$(valueFolder, PARAMS, 'valueFontColor'),
     fromBinding$(valueFolder, PARAMS, 'valueGridBorderColor'),
@@ -150,7 +146,6 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   });
 
   const hintGrid$ = merge(
-    fromBinding$(hintFolder, PARAMS, 'hintFontSize', { step: 1, min: 1 }),
     fromBinding$(hintFolder, PARAMS, 'hintFont'),
     fromBinding$(hintFolder, PARAMS, 'hintFontColor'),
     fromBinding$(hintFolder, PARAMS, 'hintGridBorderWidth', { step: 1 }),
@@ -169,7 +164,6 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
 
   const copyConfig$ = fromButton$(pane, 'copy configs');
 
-  // A new game only updates the pane itself, the new seed then reaches the game through the seed binding like any other change
   const newGameSubscription = newGame$.subscribe(() => {
     PARAMS.seed = createRandomSeed();
     pane.refresh();
@@ -228,13 +222,10 @@ export class PageSudokuComponent {
     filter(Boolean)
   );
 
-  // Actions triggered from the template, e.g. the value buttons or a click on the board
   public readonly templateActions$ = new Subject<GameAction>();
 
-  // The debug pane only exists in the browser, not during server side rendering
   private readonly debugActions$ = this.isBrowser ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
 
-  // Shared, so the state and the effects below do not each create their own debug pane
   private readonly actions$ = merge(
     this.keyActions$,
     this.templateActions$,
@@ -243,7 +234,6 @@ export class PageSudokuComponent {
     share()
   );
 
-  // Shared and replayed, so the template and the effects below read the same state instead of each running their own reducer
   private readonly state$ = this.actions$.pipe(
     filter((action): action is StateAction => action[0] !== 'copyConfig'),
     scan(pageReducer, this.initialState),
