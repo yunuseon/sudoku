@@ -1,4 +1,4 @@
-import { Component, inject, NgZone, PLATFORM_ID, DOCUMENT } from '@angular/core';
+import { Component, inject, NgZone, PLATFORM_ID, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
@@ -217,6 +217,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   imports: [SudokuBoardComponent, AsyncPipe],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
+  changeDetection: ChangeDetectionStrategy.Eager,
   hostDirectives: [PageDirective]
 })
 export class PageSudokuComponent {
