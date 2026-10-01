@@ -1,8 +1,9 @@
-import { Component, inject, PLATFORM_ID, DOCUMENT } from '@angular/core';
+import { Component, inject, isDevMode, PLATFORM_ID, DOCUMENT } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 import { formatElapsed } from '../../components/format-elapsed';
+import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -63,6 +64,7 @@ const boardSettings = {
   "width": 1000,
   "clientWidth": 600,
   "clientHeight": 600,
+  "pixelRatio": 1,
   "backgroundColor": "#213555",
   "cellPaddingRatio": 0.33,
   "mainBorderColor": "#d8c4b6",
@@ -100,6 +102,9 @@ const pageReducer = (state: PageState, [action, time]: TimedAction<StateAction>)
   ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
   : { ...state, ...gameReducer(state, action, time) };
 
+// at most 9 symbols per row, spread evenly over the rows
+const padColumns = (symbols: number) => Math.ceil(symbols / Math.ceil(symbols / 9));
+
 export const createPageState = (seed: number, time: number): PageState => ({
   ...createGameState({ ...gameSettings, seed }, time),
   boardSettings
@@ -120,7 +125,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   // Tweakpane writes into the bound object, so it must not be the state
   const PARAMS = { ...config };
 
-  const pane = new Pane();
+  const pane = new Pane({ title: 'debug', expanded: false });
 
   const generalFolder = pane.addFolder({
     title: 'General'
@@ -129,8 +134,6 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   const general$ = merge(
     fromBinding$(generalFolder, PARAMS, 'height', { step: 1, min: 1 }),
     fromBinding$(generalFolder, PARAMS, 'width', { step: 1, min: 1 }),
-    fromBinding$(generalFolder, PARAMS, 'clientWidth', { step: 1, min: 1 }),
-    fromBinding$(generalFolder, PARAMS, 'clientHeight', { step: 1, min: 1 }),
     fromBinding$(generalFolder, PARAMS, 'backgroundColor'),
     fromBinding$(generalFolder, PARAMS, 'cellPaddingRatio', { min: 0, max: 0.49, step: 0.01 })
   );
@@ -235,7 +238,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
 
 @Component({
   selector: 'hks-page-sudoku',
-  imports: [SudokuBoardComponent, AsyncPipe],
+  imports: [SudokuBoardComponent, AsyncPipe, ResizeDirective],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
   hostDirectives: [PageDirective]
@@ -269,12 +272,22 @@ export class PageSudokuComponent {
     map((): GameAction => ['configureGame', { seed: createRandomSeed() }])
   );
 
-  private readonly debugActions$ = this.isBrowser ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
+  public readonly resize$ = new Subject<Size>();
+
+  private readonly resizeActions$ = this.resize$.pipe(
+    map(({ width, height }): ConfigureBoardAction => {
+      const size = Math.floor(Math.min(width, height));
+      return ['configureBoard', { clientWidth: size, clientHeight: size, pixelRatio: window.devicePixelRatio }];
+    })
+  );
+
+  private readonly debugActions$ = this.isBrowser && isDevMode() ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
 
   private readonly actions$ = merge(
     this.keyActions$,
     this.templateActions$,
     this.newGameActions$,
+    this.resizeActions$,
     this.debugActions$
   ).pipe(
     map((action): TimedAction<PageAction> => [action, now()]),
@@ -289,6 +302,7 @@ export class PageSudokuComponent {
   );
 
   protected readonly formatElapsed = formatElapsed;
+  protected readonly padColumns = padColumns;
   protected readonly isPaused = isPaused;
   protected readonly isStopped = isStopped;
 

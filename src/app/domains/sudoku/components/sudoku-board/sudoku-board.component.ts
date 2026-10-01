@@ -248,8 +248,8 @@ const drawSolvedOverlay = (context: CanvasRenderingContext2D, config: BoardConfi
   templateUrl: './sudoku-board.component.html',
   styleUrl: './sudoku-board.component.scss',
   host: {
-    '[attr.width]': 'config().width',
-    '[attr.height]': 'config().height',
+    '[attr.width]': 'Math.round(config().clientWidth * config().pixelRatio)',
+    '[attr.height]': 'Math.round(config().clientHeight * config().pixelRatio)',
     '[style.width.px]': 'config().clientWidth',
     '[style.height.px]': 'config().clientHeight'
   }
@@ -259,12 +259,14 @@ export class SudokuBoardComponent {
 
   public readonly config = input.required<BoardConfig>();
 
+  protected readonly Math = Math;
+
   private readonly selectPosition$ = fromEvent<MouseEvent>(this.canvas, 'click').pipe(
     map((event) => {
       const config = this.config();
 
-      const x = event.offsetX * this.canvas.width / this.canvas.clientWidth;
-      const y = event.offsetY * this.canvas.height / this.canvas.clientHeight;
+      const x = event.offsetX * config.width / this.canvas.clientWidth;
+      const y = event.offsetY * config.height / this.canvas.clientHeight;
 
       return positionAt(boardGeometry(config), config, x, y);
     }),
@@ -282,6 +284,9 @@ export class SudokuBoardComponent {
     const geometry = boardGeometry(config);
 
     const context = this.canvas.getContext('2d')!;
+
+    // everything is drawn in board units (config.width x config.height), scaled to the actual pixel resolution
+    context.setTransform(this.canvas.width / config.width, 0, 0, this.canvas.height / config.height, 0, 0);
 
     // draw background
     context.fillStyle = config.backgroundColor;

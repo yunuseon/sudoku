@@ -1,0 +1,80 @@
+.game {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, sans-serif;
+
+  > * {
+    width: 100%;
+    max-width: 40rem;
+    align-self: center;
+  }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.time {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-area {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 6px;
+
+  button {
+    padding: 0;
+    font-size: 1.5rem;
+  }
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+button {
+  min-height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 8%);
+  color: var(--foreground);
+  cursor: pointer;
+
+  &:active {
+    background: rgb(255 255 255 / 18%);
+  }
+
+  &.active {
+    background: var(--accent);
+    color: var(--background);
+  }
+}

@@ -1,18 +1,28 @@
-<p>page-sudoku works!</p>
-
 @if (boardConfig$ | async; as config) {
-  <div>
-    <span>{{ formatElapsed((elapsed$ | async) ?? 0) }}</span>
-    @if (!isStopped(config.timer)) {
-      <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
-    }
-    <button (click)="newGame$.next()">new game</button>
-  </div>
-  <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
-  <div>
-    @for (item of config.alphabet; track item) {
-      <button (click)="templateActions$.next(['set', item])">{{ item }}</button>
-    }
-    <button (click)="templateActions$.next(['set', ''])">delete</button>
+  <div class="game" [style.--background]="config.backgroundColor" [style.--foreground]="config.valueFontColor" [style.--accent]="config.mainBorderColor">
+    <header class="bar">
+      <span class="time">{{ formatElapsed((elapsed$ | async) ?? 0) }}</span>
+      <div class="bar-actions">
+        @if (!isStopped(config.timer)) {
+          <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
+        }
+        <button (click)="newGame$.next()">new game</button>
+      </div>
+    </header>
+
+    <div class="board-area" (hksResize)="resize$.next($event)">
+      <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
+    </div>
+
+    <div class="pad" [style.--columns]="padColumns(config.alphabet.length)">
+      @for (item of config.alphabet; track item) {
+        <button (click)="templateActions$.next(['set', item])">{{ item }}</button>
+      }
+    </div>
+
+    <div class="tools">
+      <button [class.active]="config.hintMode" (click)="templateActions$.next(['hintMode', !config.hintMode])">notes</button>
+      <button (click)="templateActions$.next(['set', ''])">delete</button>
+    </div>
   </div>
 }
