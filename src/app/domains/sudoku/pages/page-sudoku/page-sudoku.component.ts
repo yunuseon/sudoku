@@ -72,6 +72,7 @@ const boardSettings = {
   "mainGridBorderWidth": 12,
   "valueFont": "system-ui",
   "valueFontColor": "#f5efe7",
+  "enteredValueFontColor": "#8ec5ff",
   "valueGridBorderColor": "#3e5879",
   "valueGridBorderWidth": 4,
   "hintFont": "system-ui",
@@ -83,6 +84,7 @@ const boardSettings = {
   "highlightColor": '#18263c',
   "selectedCellHighlightColor": '#030509',
   "highlightFontColor": '#ff0ff0',
+  "enteredHighlightFontColor": '#ff9cf7',
 }
 
 type BoardSettings = typeof boardSettings;
@@ -160,6 +162,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   const valueGrid$ = merge(
     fromBinding$(valueFolder, PARAMS, 'valueFont'),
     fromBinding$(valueFolder, PARAMS, 'valueFontColor'),
+    fromBinding$(valueFolder, PARAMS, 'enteredValueFontColor'),
     fromBinding$(valueFolder, PARAMS, 'valueGridBorderColor'),
     fromBinding$(valueFolder, PARAMS, 'valueGridBorderWidth', { step: 1, min: 0 }),
     fromBinding$(valueFolder, PARAMS, 'renderTextBoundingBoxLineWidth', { step: 1, min: 0 }),
@@ -184,7 +187,8 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   const highlight$ = merge(
     fromBinding$(highlightFolder, PARAMS, 'highlightColor'),
     fromBinding$(highlightFolder, PARAMS, 'selectedCellHighlightColor'),
-    fromBinding$(highlightFolder, PARAMS, 'highlightFontColor')
+    fromBinding$(highlightFolder, PARAMS, 'highlightFontColor'),
+    fromBinding$(highlightFolder, PARAMS, 'enteredHighlightFontColor')
   );
 
   const copyConfig$ = fromButton$(pane, 'copy configs');

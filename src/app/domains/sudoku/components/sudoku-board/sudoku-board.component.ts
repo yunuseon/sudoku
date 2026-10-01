@@ -305,7 +305,9 @@ export class SudokuBoardComponent {
               drawSymbol(context, val, center(geometry.valueGridRect(valueX, valueY)), {
                 font: isMatching ? matchingValueFont : valueFont,
                 metrics: isMatching ? matchingValueMetrics : valueMetrics,
-                color: config.highlightedCells[boardIndex] ? config.highlightFontColor : config.valueFontColor,
+                color: config.givens[boardIndex]
+                  ? (config.highlightedCells[boardIndex] ? config.highlightFontColor : config.valueFontColor)
+                  : (config.highlightedCells[boardIndex] ? config.enteredHighlightFontColor : config.enteredValueFontColor),
                 boundingBoxColor: config.renderTextBoundingBoxColor,
                 boundingBoxLineWidth: config.renderTextBoundingBoxLineWidth
               });

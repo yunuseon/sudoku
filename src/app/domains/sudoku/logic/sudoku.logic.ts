@@ -273,6 +273,7 @@ const togglePause = (timer: Timer, time: number): Timer => timer.pausedAt === nu
 export type Game = {
   settings: GameSettings;
   boardValues: Board;
+  givens: boolean[];
   boardHints: Board;
   selectedPosition: Position;
   hintMode: boolean;
@@ -299,10 +300,12 @@ export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction 
 
 export const createGame = (settings: GameSettings, time: number): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
+  const { puzzle } = createSudoku({ dimension: settings.xDimension, alphabet, givensRatio: settings.givensRatio, seed: settings.seed });
 
   return {
     settings,
-    boardValues: createSudoku({ dimension: settings.xDimension, alphabet, givensRatio: settings.givensRatio, seed: settings.seed }).puzzle,
+    boardValues: puzzle,
+    givens: puzzle.map(value => value !== ''),
     boardHints: new Array(
       settings.xDimension * settings.xDimension * settings.xDimension *
       settings.yDimension * settings.yDimension * settings.yDimension
@@ -331,6 +334,10 @@ export const createGameState = (settings: GameSettings, time: number): GameState
 const setGameValue = (game: Game, xDimension: number, value: string): Game => {
   const selectedValuePosition = game.selectedPosition.y * (xDimension * xDimension) + game.selectedPosition.x;
   const selectedValue = game.boardValues[selectedValuePosition];
+
+  if (game.givens[selectedValuePosition]) {
+    return game;
+  }
 
   if (game.hintMode) {
 
