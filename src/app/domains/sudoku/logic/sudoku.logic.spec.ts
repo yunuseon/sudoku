@@ -1,4 +1,4 @@
-import { createGameState, createNumericAlphabet, createSudoku, elapsed, gameReducer, GameState, getConflictingCells, isSolved } from './sudoku.logic';
+import { createGameState, createNumericAlphabet, createSudoku, elapsed, gameReducer, GameState, getConflictingCells, getRemainingCounts, isSolved } from './sudoku.logic';
 
 const settings = { xDimension: 3, yDimension: 3, givensRatio: 0.31, seed: 1 };
 
@@ -77,5 +77,16 @@ describe('getConflictingCells', () => {
     const conflicts = getConflictingCells(board);
 
     expect(conflicts.flatMap((isConflict, index) => isConflict ? [index] : [])).toEqual([0, 8]);
+  });
+});
+
+describe('getRemainingCounts', () => {
+  it('counts how many of each symbol are still missing', () => {
+    const board = new Array(81).fill('');
+    board[0] = '1';
+    board[10] = '1';
+    board[20] = '9';
+
+    expect(getRemainingCounts(board, createNumericAlphabet(3, 3))).toEqual([7, 9, 9, 9, 9, 9, 9, 9, 8]);
   });
 });

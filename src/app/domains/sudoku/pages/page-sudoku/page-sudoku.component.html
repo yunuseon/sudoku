@@ -14,15 +14,18 @@
       <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
     </div>
 
-    <div class="pad" [style.--columns]="padColumns(config.alphabet.length)">
-      @for (item of config.alphabet; track item) {
-        <button (click)="templateActions$.next(['set', item])">{{ item }}</button>
-      }
-    </div>
-
     <div class="tools">
       <button [class.active]="config.hintMode" (click)="templateActions$.next(['hintMode', !config.hintMode])">notes</button>
       <button (click)="templateActions$.next(['set', ''])">delete</button>
+    </div>
+
+    <div class="pad" [style.--columns]="padColumns(config.alphabet.length)">
+      @for (item of config.alphabet; track item; let i = $index) {
+        <button [class.complete]="config.remainingCounts[i] === 0" (click)="templateActions$.next(['set', item])">
+          {{ item }}
+          <span class="remaining">{{ config.remainingCounts[i] }}</span>
+        </button>
+      }
     </div>
   </div>
 }

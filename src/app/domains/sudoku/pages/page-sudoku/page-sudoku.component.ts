@@ -7,7 +7,7 @@ import { ResizeDirective, Size } from '../../../../core/directives/resize.direct
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
+import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, getRemainingCounts, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
 type KeyAction = SetAction | MoveAction | TogglePauseAction;
@@ -116,7 +116,8 @@ export const toBoardConfig = (state: PageState) => ({
   ...state.game,
   highlightedCells: getHighlightedCells(state.game.settings.xDimension, state.game.selectedPosition),
   matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition),
-  conflictingCells: getConflictingCells(state.game.boardValues)
+  conflictingCells: getConflictingCells(state.game.boardValues),
+  remainingCounts: getRemainingCounts(state.game.boardValues, state.game.alphabet)
 });
 
 export type BoardConfig = ReturnType<typeof toBoardConfig>;

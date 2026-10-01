@@ -88,6 +88,9 @@ export const getHighlightedCells = (dimension: number, selectedPosition: Positio
   return new Array(n * n).fill(false).map((_, i) => isRelated(i % n, Math.floor(i / n)));
 }
 
+export const getRemainingCounts = (board: Board, alphabet: string[]) =>
+  alphabet.map(symbol => Math.max(0, alphabet.length - board.filter(value => value === symbol).length));
+
 export const getConflictingCells = (board: Board) => board.map((value, position) => value !== '' && !checkRules(ruleSetSudoku)(board, position, value));
 
 export const getMatchingCells = (board: Board, selectedPosition: Position) => {
