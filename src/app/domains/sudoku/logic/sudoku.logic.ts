@@ -1,3 +1,5 @@
+import { type Level, levels, rateDifficulty } from './difficulty';
+
 export type Board = string[];
 
 export type Position = { x: number, y: number };
@@ -254,10 +256,36 @@ export const createSudoku = (config: { dimension: number, alphabet: string[], gi
   return { solution, puzzle };
 }
 
+// The share of givens to aim for, the rating decides whether a generated puzzle has the level
+const levelGivensRatios: Record<Level, number> = { easy: 0.45, medium: 0.36, hard: 0, expert: 0 };
+// Larger boards can't be carved below easy yet, retrying would only cost time
+const maxLevelAttempts = (dimension: number) => dimension <= 3 ? 100 : 1;
+
+const levelDistance = (a: Level, b: Level) => Math.abs(levels.indexOf(a) - levels.indexOf(b));
+
+// Tries seed, seed + 1, ... so the result stays deterministic, and falls back to the closest level found
+export const createSudokuForLevel = (config: { dimension: number, alphabet: string[], level: Level, seed: number }) => {
+  const attempt = (k: number) => {
+    const generated = createSudoku({ dimension: config.dimension, alphabet: config.alphabet, givensRatio: levelGivensRatios[config.level], seed: config.seed + k });
+    return { ...generated, level: rateDifficulty(generated.puzzle, config.alphabet, config.dimension) };
+  };
+
+  const search = (k: number, best: ReturnType<typeof attempt>): ReturnType<typeof attempt> => {
+    if (best.level === config.level || k === maxLevelAttempts(config.dimension)) {
+      return best;
+    }
+
+    const next = attempt(k);
+    return search(k + 1, levelDistance(next.level, config.level) < levelDistance(best.level, config.level) ? next : best);
+  };
+
+  return search(1, attempt(0));
+}
+
 export type GameSettings = {
   xDimension: number;
   yDimension: number;
-  givensRatio: number;
+  level: Level;
   seed: number;
 };
 
@@ -291,6 +319,7 @@ export type Move = {
 
 export type Game = {
   settings: GameSettings;
+  level: Level;
   puzzle: Board;
   moves: Move[];
   cursor: number;
@@ -325,10 +354,11 @@ export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction 
 
 export const createGame = (settings: GameSettings, time: number): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
-  const { puzzle } = createSudoku({ dimension: settings.xDimension, alphabet, givensRatio: settings.givensRatio, seed: settings.seed });
+  const { puzzle, level } = createSudokuForLevel({ dimension: settings.xDimension, alphabet, level: settings.level, seed: settings.seed });
 
   return {
     settings,
+    level,
     puzzle,
     moves: [],
     cursor: 0,

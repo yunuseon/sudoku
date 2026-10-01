@@ -4,6 +4,7 @@ import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 import { SudokuTimelineComponent } from '../../components/sudoku-timeline/sudoku-timeline.component';
 import { formatElapsed } from '../../components/format-elapsed';
+import { type Level, levels } from '../../logic/difficulty';
 import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
 import { now } from '../../../../core/time/now';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
@@ -58,7 +59,7 @@ const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => !isRunning(gam
 const gameSettings = {
   "xDimension": 3,
   "yDimension": 3,
-  "givensRatio": 0.31,
+  "level": 'medium' as Level,
 };
 
 const boardSettings = {
@@ -150,7 +151,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   const game$ = merge(
     fromBinding$(gameFolder, PARAMS, 'xDimension', { step: 1, min: 1 }),
     fromBinding$(gameFolder, PARAMS, 'yDimension', { step: 1, min: 1 }),
-    fromBinding$(gameFolder, PARAMS, 'givensRatio', { min: 0, max: 1, step: 0.01 }),
+    fromBinding$(gameFolder, PARAMS, 'level', { options: Object.fromEntries(levels.map(level => [level, level])) }),
     fromBinding$(gameFolder, PARAMS, 'seed', { step: 1 })
   );
   const newGame$ = fromButton$(gameFolder, 'new game');
@@ -273,10 +274,10 @@ export class PageSudokuComponent {
 
   public readonly templateActions$ = new Subject<GameAction>();
 
-  public readonly newGame$ = new Subject<void>();
+  public readonly newGame$ = new Subject<Level>();
 
   private readonly newGameActions$ = this.newGame$.pipe(
-    map((): GameAction => ['configureGame', { seed: createRandomSeed() }])
+    map((level): GameAction => ['configureGame', { seed: createRandomSeed(), level }])
   );
 
   public readonly resize$ = new Subject<Size>();
@@ -310,6 +311,7 @@ export class PageSudokuComponent {
 
   protected readonly formatElapsed = formatElapsed;
   protected readonly padColumns = padColumns;
+  protected readonly levels = levels;
   protected readonly isPaused = isPaused;
   protected readonly isStopped = isStopped;
 

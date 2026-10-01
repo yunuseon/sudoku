@@ -2,14 +2,23 @@
   @let elapsed = (elapsed$ | async) ?? 0;
   <div class="game" [style.--background]="config.backgroundColor" [style.--foreground]="config.valueFontColor" [style.--accent]="config.mainBorderColor">
     <header class="bar">
-      <span class="time">{{ formatElapsed(elapsed) }}</span>
+      <span class="status">
+        <span class="time">{{ formatElapsed(elapsed) }}</span>
+        <span class="level">{{ config.level }}</span>
+      </span>
       <div class="bar-actions">
         @if (!isStopped(config.timer)) {
           <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
         }
-        <button (click)="newGame$.next()">new game</button>
+        <button popovertarget="level-picker">new game</button>
       </div>
     </header>
+
+    <div id="level-picker" class="level-picker" popover>
+      @for (level of levels; track level) {
+        <button popovertarget="level-picker" popovertargetaction="hide" [class.active]="level === config.settings.level" (click)="newGame$.next(level)">{{ level }}</button>
+      }
+    </div>
 
     <hks-sudoku-timeline
       [moves]="config.moves"

@@ -1,6 +1,6 @@
-import { createGameState, createNumericAlphabet, createSudoku, elapsed, gameReducer, GameState, getConflictingCells, getRemainingCounts, isSolved } from './sudoku.logic';
+import { createGameState, createNumericAlphabet, createSudokuForLevel, elapsed, gameReducer, GameState, getConflictingCells, getRemainingCounts, isSolved } from './sudoku.logic';
 
-const settings = { xDimension: 3, yDimension: 3, givensRatio: 0.31, seed: 1 };
+const settings = { xDimension: 3, yDimension: 3, level: 'medium' as const, seed: 1 };
 
 const selectCell = (state: GameState, given: boolean): GameState => {
   const index = state.game.givens.findIndex(isGiven => isGiven === given);
@@ -39,7 +39,7 @@ describe('gameReducer', () => {
   });
 
   it('stops the timer at the move that solves the board and ignores input afterwards', () => {
-    const { solution } = createSudoku({ dimension: 3, alphabet: createNumericAlphabet(3, 3), givensRatio: settings.givensRatio, seed: settings.seed });
+    const { solution } = createSudokuForLevel({ dimension: 3, alphabet: createNumericAlphabet(3, 3), level: settings.level, seed: settings.seed });
     const start = createGameState(settings, 1000);
     const open = start.game.givens.flatMap((isGiven, index) => isGiven ? [] : [index]);
 
@@ -136,7 +136,7 @@ describe('undo, redo and seek', () => {
   });
 
   it('stops the timer when a redo solves the board', () => {
-    const { solution } = createSudoku({ dimension: 3, alphabet: createNumericAlphabet(3, 3), givensRatio: settings.givensRatio, seed: settings.seed });
+    const { solution } = createSudokuForLevel({ dimension: 3, alphabet: createNumericAlphabet(3, 3), level: settings.level, seed: settings.seed });
     const open = emptyCells(start);
     const almost = open.slice(0, -1).reduce((state, cell, i) => enter(state, cell, solution[cell], 1000 + i), start);
     const last = open[open.length - 1];
