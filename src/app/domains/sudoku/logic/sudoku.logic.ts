@@ -260,11 +260,16 @@ export type Timer = {
   startedAt: number;
   pausedAt: number | null;
   pausedTotal: number;
+  stoppedAt: number | null;
 };
 
 export const isPaused = (timer: Timer) => timer.pausedAt !== null;
 
-export const elapsed = (timer: Timer, time: number) => (timer.pausedAt ?? time) - timer.startedAt - timer.pausedTotal;
+export const isStopped = (timer: Timer) => timer.stoppedAt !== null;
+
+export const isRunning = (timer: Timer) => !isPaused(timer) && !isStopped(timer);
+
+export const elapsed = (timer: Timer, time: number) => (timer.stoppedAt ?? timer.pausedAt ?? time) - timer.startedAt - timer.pausedTotal;
 
 const togglePause = (timer: Timer, time: number): Timer => timer.pausedAt === null
   ? { ...timer, pausedAt: time }
@@ -316,7 +321,7 @@ export const createGame = (settings: GameSettings, time: number): Game => {
     },
     hintMode: false,
     alphabet,
-    timer: { startedAt: time, pausedAt: null, pausedTotal: 0 }
+    timer: { startedAt: time, pausedAt: null, pausedTotal: 0, stoppedAt: null }
   };
 }
 
@@ -384,18 +389,23 @@ const moveSelection = (position: Position, direction: MoveDirection, xDimension:
   }
 }
 
+export const isSolved = (board: Board) => board.every((value, position) => value !== '' && checkRules(ruleSetSudoku)(board, position, value));
+
 const pausedActions: GameAction[0][] = ['set', 'move', 'select'];
+const solvedActions: GameAction[0][] = ['set', 'togglePause'];
 
 export const gameReducer = (state: GameState, action: GameAction, time: number): GameState => {
   const [type, value] = action;
 
-  if (isPaused(state.game.timer) && pausedActions.includes(type)) {
+  if (isPaused(state.game.timer) && pausedActions.includes(type) || isStopped(state.game.timer) && solvedActions.includes(type)) {
     return state;
   }
 
   switch (type) {
-    case 'set':
-      return { ...state, game: setGameValue(state.game, state.game.settings.xDimension, value) };
+    case 'set': {
+      const game = setGameValue(state.game, state.game.settings.xDimension, value);
+      return { ...state, game: isSolved(game.boardValues) ? { ...game, timer: { ...game.timer, stoppedAt: time } } : game };
+    }
     case 'move':
       return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.game.settings.xDimension) } };
     case 'select':

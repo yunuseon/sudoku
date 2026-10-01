@@ -5,7 +5,7 @@ import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
+import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
 type KeyAction = SetAction | MoveAction | TogglePauseAction;
@@ -41,8 +41,8 @@ const keyboardSettings: KeyBindings = {
 // unlike Date.now() this cannot jump when the system clock changes
 const now = () => performance.timeOrigin + performance.now();
 
-// emits the elapsed time now and then exactly when the next full second is reached, nothing while paused
-const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => isPaused(gameTimer)
+// emits the elapsed time now and then exactly when the next full second is reached, nothing while paused or stopped
+const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => !isRunning(gameTimer)
   ? of(elapsed(gameTimer, now()))
   : defer(() => of(elapsed(gameTimer, now()))).pipe(
     expand(current => timer(1000 - current % 1000).pipe(
@@ -270,6 +270,7 @@ export class PageSudokuComponent {
 
   protected readonly formatElapsed = formatElapsed;
   protected readonly isPaused = isPaused;
+  protected readonly isStopped = isStopped;
 
   // the server renders the elapsed time once, a running clock would keep it from ever finishing
   public readonly elapsed$ = this.state$.pipe(
