@@ -2,7 +2,8 @@ import { afterRenderEffect, Component, ElementRef, inject, input } from '@angula
 import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { filter, fromEvent, map } from 'rxjs';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
-import { isPaused, Position } from '../../logic/sudoku.logic';
+import { elapsed, isPaused, isStopped, Position } from '../../logic/sudoku.logic';
+import { formatElapsed } from '../format-elapsed';
 
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -211,6 +212,36 @@ const drawSymbol = (context: CanvasRenderingContext2D, symbol: string, center: {
   }
 }
 
+const valueColor = (config: BoardConfig, index: number) => {
+  if (config.showConflicts && config.conflictingCells[index]) {
+    return config.conflictFontColor;
+  }
+
+  if (config.givens[index]) {
+    return config.highlightedCells[index] ? config.highlightFontColor : config.valueFontColor;
+  }
+
+  return config.highlightedCells[index] ? config.enteredHighlightFontColor : config.enteredValueFontColor;
+}
+
+const drawSolvedOverlay = (context: CanvasRenderingContext2D, config: BoardConfig) => {
+  const text = `Solved in ${formatElapsed(elapsed(config.timer, config.timer.stoppedAt ?? 0))}`;
+
+  context.fillStyle = config.solvedOverlayColor;
+  context.fillRect(0, 0, config.width, config.height);
+
+  const fontSize = fitFontSize(context, config.valueFont, [text], paddedBox({ width: config.width, height: config.height / 5 }, config.cellPaddingRatio));
+  const font = `bold ${fontSize}px ${config.valueFont}`;
+
+  drawSymbol(context, text, { x: config.width / 2, y: config.height / 2 }, {
+    font,
+    color: config.solvedFontColor,
+    metrics: measureSymbols(context, font, [text]),
+    boundingBoxColor: config.renderTextBoundingBoxColor,
+    boundingBoxLineWidth: 0
+  });
+}
+
 @Component({
   selector: 'canvas[hks-sudoku-board]',
   imports: [],
@@ -305,9 +336,7 @@ export class SudokuBoardComponent {
               drawSymbol(context, val, center(geometry.valueGridRect(valueX, valueY)), {
                 font: isMatching ? matchingValueFont : valueFont,
                 metrics: isMatching ? matchingValueMetrics : valueMetrics,
-                color: config.givens[boardIndex]
-                  ? (config.highlightedCells[boardIndex] ? config.highlightFontColor : config.valueFontColor)
-                  : (config.highlightedCells[boardIndex] ? config.enteredHighlightFontColor : config.enteredValueFontColor),
+                color: valueColor(config, boardIndex),
                 boundingBoxColor: config.renderTextBoundingBoxColor,
                 boundingBoxLineWidth: config.renderTextBoundingBoxLineWidth
               });
@@ -371,6 +400,10 @@ export class SudokuBoardComponent {
         config.width - config.mainGridBorderWidth,
         config.height - config.mainGridBorderWidth
       );
+    }
+
+    if (isStopped(config.timer)) {
+      drawSolvedOverlay(context, config);
     }
   }
 }

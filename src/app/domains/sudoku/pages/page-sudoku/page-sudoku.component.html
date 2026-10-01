@@ -3,11 +3,10 @@
 @if (boardConfig$ | async; as config) {
   <div>
     <span>{{ formatElapsed((elapsed$ | async) ?? 0) }}</span>
-    @if (isStopped(config.timer)) {
-      <span>solved</span>
-    } @else {
+    @if (!isStopped(config.timer)) {
       <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
     }
+    <button (click)="newGame$.next()">new game</button>
   </div>
   <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
   <div>

@@ -2,10 +2,11 @@ import { Component, inject, PLATFORM_ID, DOCUMENT } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
+import { formatElapsed } from '../../components/format-elapsed';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
+import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
 type KeyAction = SetAction | MoveAction | TogglePauseAction;
@@ -50,10 +51,6 @@ const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => !isRunning(gam
     ))
   );
 
-const formatElapsed = (elapsed: number) => {
-  const seconds = Math.floor(elapsed / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
 
 const gameSettings = {
   "xDimension": 3,
@@ -85,6 +82,10 @@ const boardSettings = {
   "selectedCellHighlightColor": '#030509',
   "highlightFontColor": '#ff0ff0',
   "enteredHighlightFontColor": '#ff9cf7',
+  "showConflicts": true,
+  "conflictFontColor": '#ff5c5c',
+  "solvedOverlayColor": '#213555d9',
+  "solvedFontColor": '#f5efe7',
 }
 
 type BoardSettings = typeof boardSettings;
@@ -109,7 +110,8 @@ export const toBoardConfig = (state: PageState) => ({
   ...state.boardSettings,
   ...state.game,
   highlightedCells: getHighlightedCells(state.game.settings.xDimension, state.game.selectedPosition),
-  matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition)
+  matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition),
+  conflictingCells: getConflictingCells(state.game.boardValues)
 });
 
 export type BoardConfig = ReturnType<typeof toBoardConfig>;
@@ -191,6 +193,17 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
     fromBinding$(highlightFolder, PARAMS, 'enteredHighlightFontColor')
   );
 
+  const gameStateFolder = pane.addFolder({
+    title: 'Game State Display'
+  });
+
+  const gameStateDisplay$ = merge(
+    fromBinding$(gameStateFolder, PARAMS, 'showConflicts'),
+    fromBinding$(gameStateFolder, PARAMS, 'conflictFontColor'),
+    fromBinding$(gameStateFolder, PARAMS, 'solvedOverlayColor'),
+    fromBinding$(gameStateFolder, PARAMS, 'solvedFontColor')
+  );
+
   const copyConfig$ = fromButton$(pane, 'copy configs');
 
   const newGameSubscription = newGame$.subscribe(() => {
@@ -199,7 +212,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   });
 
   const actionSubscription = merge(
-    merge(general$, mainGrid$, valueGrid$, hintGrid$, highlight$).pipe(
+    merge(general$, mainGrid$, valueGrid$, hintGrid$, highlight$, gameStateDisplay$).pipe(
       map((changes): DebugAction => ['configureBoard', changes])
     ),
     game$.pipe(
@@ -250,11 +263,18 @@ export class PageSudokuComponent {
 
   public readonly templateActions$ = new Subject<GameAction>();
 
+  public readonly newGame$ = new Subject<void>();
+
+  private readonly newGameActions$ = this.newGame$.pipe(
+    map((): GameAction => ['configureGame', { seed: createRandomSeed() }])
+  );
+
   private readonly debugActions$ = this.isBrowser ? defer(() => createDebugPane$(toBoardConfig(this.initialState))) : EMPTY;
 
   private readonly actions$ = merge(
     this.keyActions$,
     this.templateActions$,
+    this.newGameActions$,
     this.debugActions$
   ).pipe(
     map((action): TimedAction<PageAction> => [action, now()]),

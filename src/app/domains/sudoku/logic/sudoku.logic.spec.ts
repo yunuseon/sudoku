@@ -1,4 +1,4 @@
-import { createGameState, createNumericAlphabet, createSudoku, elapsed, gameReducer, GameState, isSolved } from './sudoku.logic';
+import { createGameState, createNumericAlphabet, createSudoku, elapsed, gameReducer, GameState, getConflictingCells, isSolved } from './sudoku.logic';
 
 const settings = { xDimension: 3, yDimension: 3, givensRatio: 0.31, seed: 1 };
 
@@ -63,5 +63,19 @@ describe('gameReducer', () => {
 
     expect(gameReducer(solved, ['set', ''], 10000)).toBe(solved);
     expect(gameReducer(solved, ['togglePause', null], 10000)).toBe(solved);
+  });
+});
+
+describe('getConflictingCells', () => {
+  it('marks every value that breaks a rule and nothing else', () => {
+    const board = new Array(81).fill('');
+    board[0] = '5';
+    board[8] = '5';
+    board[10] = '3';
+    board[72] = '7';
+
+    const conflicts = getConflictingCells(board);
+
+    expect(conflicts.flatMap((isConflict, index) => isConflict ? [index] : [])).toEqual([0, 8]);
   });
 });
