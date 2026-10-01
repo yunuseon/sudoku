@@ -97,7 +97,12 @@ const pageReducer = (state: PageState, [action, time]: TimedAction<StateAction>)
   ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
   : { ...state, ...gameReducer(state, action, time) };
 
-const toBoardConfig = (state: PageState) => ({
+export const createPageState = (seed: number, time: number): PageState => ({
+  ...createGameState({ ...gameSettings, seed }, time),
+  boardSettings
+});
+
+export const toBoardConfig = (state: PageState) => ({
   ...state.game.settings,
   ...state.boardSettings,
   ...state.game,
@@ -222,10 +227,7 @@ export class PageSudokuComponent {
   private readonly document = inject(DOCUMENT);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  private readonly initialState: PageState = {
-    ...createGameState({ ...gameSettings, seed: createRandomSeed() }, now()),
-    boardSettings
-  };
+  private readonly initialState = createPageState(createRandomSeed(), now());
 
   private readonly keyboardSettings$ = of(keyboardSettings).pipe(
     map(keyBindings => Object.entries(keyBindings))
