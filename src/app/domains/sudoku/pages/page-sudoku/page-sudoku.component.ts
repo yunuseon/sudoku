@@ -2,15 +2,16 @@ import { Component, inject, isDevMode, PLATFORM_ID, DOCUMENT } from '@angular/co
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
+import { SudokuTimelineComponent } from '../../components/sudoku-timeline/sudoku-timeline.component';
 import { formatElapsed } from '../../components/format-elapsed';
 import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, getRemainingCounts, HintModeAction, isPaused, isRunning, isStopped, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
+import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, getRemainingCounts, HintModeAction, isPaused, isRunning, isStopped, MoveAction, RedoAction, SetAction, Timer, TogglePauseAction, UndoAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
-type KeyAction = SetAction | MoveAction | TogglePauseAction;
+type KeyAction = SetAction | MoveAction | TogglePauseAction | UndoAction | RedoAction;
 
 type ConfigureBoardAction = ['configureBoard', Partial<BoardSettings>];
 type CopyConfigAction = ['copyConfig', null];
@@ -38,6 +39,8 @@ const keyboardSettings: KeyBindings = {
   'ArrowUp': ['move', 'up'],
   'ArrowDown': ['move', 'down'],
   'KeyP': ['togglePause', null],
+  'KeyZ': ['undo', null],
+  'KeyY': ['redo', null],
 };
 
 // unlike Date.now() this cannot jump when the system clock changes
@@ -88,6 +91,7 @@ const boardSettings = {
   "conflictFontColor": '#ff5c5c',
   "solvedOverlayColor": '#213555d9',
   "solvedFontColor": '#f5efe7',
+  "timelinePixelsPerSecond": 12,
 }
 
 type BoardSettings = typeof boardSettings;
@@ -205,7 +209,8 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
     fromBinding$(gameStateFolder, PARAMS, 'showConflicts'),
     fromBinding$(gameStateFolder, PARAMS, 'conflictFontColor'),
     fromBinding$(gameStateFolder, PARAMS, 'solvedOverlayColor'),
-    fromBinding$(gameStateFolder, PARAMS, 'solvedFontColor')
+    fromBinding$(gameStateFolder, PARAMS, 'solvedFontColor'),
+    fromBinding$(gameStateFolder, PARAMS, 'timelinePixelsPerSecond', { min: 1, step: 1 })
   );
 
   const copyConfig$ = fromButton$(pane, 'copy configs');
@@ -239,7 +244,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
 
 @Component({
   selector: 'hks-page-sudoku',
-  imports: [SudokuBoardComponent, AsyncPipe, ResizeDirective],
+  imports: [SudokuBoardComponent, SudokuTimelineComponent, AsyncPipe, ResizeDirective],
   templateUrl: './page-sudoku.component.html',
   styleUrl: './page-sudoku.component.scss',
   hostDirectives: [PageDirective]

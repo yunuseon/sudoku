@@ -90,3 +90,64 @@ describe('getRemainingCounts', () => {
     expect(getRemainingCounts(board, createNumericAlphabet(3, 3))).toEqual([7, 9, 9, 9, 9, 9, 9, 9, 8]);
   });
 });
+
+describe('undo, redo and seek', () => {
+  const emptyCells = (state: GameState) => state.game.givens.flatMap((isGiven, index) => isGiven ? [] : [index]);
+
+  const enter = (state: GameState, cell: number, value: string, time: number) => gameReducer(
+    gameReducer(state, ['select', { x: cell % 9, y: Math.floor(cell / 9) }], time),
+    ['set', value], time
+  );
+
+  const start = createGameState(settings, 0);
+  const [a, b] = emptyCells(start);
+  const played = enter(enter(start, a, '1', 1000), b, '2', 3000);
+
+  it('records board changes with their elapsed time, but not selections or ignored input', () => {
+    const withIgnored = gameReducer(played, ['select', { x: 0, y: 0 }], 4000);
+
+    expect(withIgnored.game.moves.map(move => [move.cell, move.value, move.elapsed])).toEqual([[a, '1', 1000], [b, '2', 3000]]);
+    expect(withIgnored.game.cursor).toBe(2);
+  });
+
+  it('undoes and redoes moves and selects the affected cell', () => {
+    const undone = gameReducer(played, ['undo', null], 5000);
+    expect(undone.game.boardValues[b]).toBe('');
+    expect(undone.game.boardValues[a]).toBe('1');
+    expect(undone.game.cursor).toBe(1);
+    expect(undone.game.selectedPosition).toEqual({ x: a % 9, y: Math.floor(a / 9) });
+
+    const redone = gameReducer(undone, ['redo', null], 6000);
+    expect(redone.game.boardValues).toEqual(played.game.boardValues);
+    expect(redone.game.cursor).toBe(2);
+
+    expect(gameReducer(redone, ['redo', null], 7000)).toBe(redone);
+    expect(gameReducer(start, ['undo', null], 7000)).toBe(start);
+  });
+
+  it('seeks to any point and replaces the undone moves with a new one', () => {
+    const atStart = gameReducer(played, ['seek', 0], 5000);
+    expect(atStart.game.boardValues).toEqual(start.game.boardValues);
+
+    const branched = enter(atStart, b, '3', 6000);
+    expect(branched.game.moves.map(move => move.value)).toEqual(['3']);
+    expect(branched.game.boardValues[a]).toBe('');
+    expect(branched.game.boardValues[b]).toBe('3');
+  });
+
+  it('stops the timer when a redo solves the board', () => {
+    const { solution } = createSudoku({ dimension: 3, alphabet: createNumericAlphabet(3, 3), givensRatio: settings.givensRatio, seed: settings.seed });
+    const open = emptyCells(start);
+    const almost = open.slice(0, -1).reduce((state, cell, i) => enter(state, cell, solution[cell], 1000 + i), start);
+    const last = open[open.length - 1];
+    const solved = enter(almost, last, solution[last], 9000);
+
+    const undone = { ...solved, game: { ...solved.game, timer: { ...solved.game.timer, stoppedAt: null } } };
+    const back = gameReducer(undone, ['undo', null], 10000);
+    expect(isSolved(back.game.boardValues)).toBe(false);
+
+    const redone = gameReducer(back, ['redo', null], 11000);
+    expect(isSolved(redone.game.boardValues)).toBe(true);
+    expect(redone.game.timer.stoppedAt).toBe(11000);
+  });
+});

@@ -1,0 +1,64 @@
+:host {
+  display: block;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.track {
+  position: relative;
+  height: 52px;
+}
+
+.tick {
+  position: absolute;
+  bottom: 0;
+  font-size: 0.65rem;
+  opacity: 0.5;
+  transform: translateX(-50%);
+}
+
+.now {
+  position: absolute;
+  top: 4px;
+  bottom: 18px;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.marker {
+  position: absolute;
+  top: 4px;
+  width: var(--marker-size);
+  height: var(--marker-size);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 12%);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  transform: translateX(-50%);
+  cursor: pointer;
+
+  &.hint {
+    font-size: 0.65rem;
+    font-style: italic;
+  }
+
+  &.start {
+    width: 10px;
+    height: 10px;
+    top: 13px;
+    border-radius: 50%;
+  }
+
+  &.undone {
+    opacity: 0.35;
+  }
+
+  &.current {
+    background: var(--accent);
+    color: var(--background);
+    z-index: 1;
+  }
+}

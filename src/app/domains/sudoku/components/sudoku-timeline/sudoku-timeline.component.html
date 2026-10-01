@@ -1,0 +1,21 @@
+@let placed = layout();
+
+<div class="track" [style.width.px]="placed.width">
+  @for (tick of placed.ticks; track tick.minute) {
+    <span class="tick" [style.left.px]="tick.x">{{ tick.minute }}:00</span>
+  }
+
+  <span class="now" [style.left.px]="placed.now"></span>
+
+  <button class="marker start" [class.current]="cursor() === 0" [style.left.px]="placed.start" (click)="seek.emit(0)"></button>
+
+  @for (move of moves(); track $index; let i = $index) {
+    <button
+      class="marker"
+      [class.hint]="move.kind === 'hint'"
+      [class.undone]="i >= cursor()"
+      [class.current]="i === cursor() - 1"
+      [style.left.px]="placed.moves[i]"
+      (click)="seek.emit(i + 1)">{{ move.value || '×' }}</button>
+  }
+</div>

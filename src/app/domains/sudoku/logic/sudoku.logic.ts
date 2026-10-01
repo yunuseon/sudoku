@@ -280,8 +280,20 @@ const togglePause = (timer: Timer, time: number): Timer => timer.pausedAt === nu
   ? { ...timer, pausedAt: time }
   : { ...timer, pausedAt: null, pausedTotal: timer.pausedTotal + time - timer.pausedAt };
 
+// Stores the value after the move instead of the pressed key, so replaying moves is a plain set and never a toggle
+export type Move = {
+  cell: number;
+  kind: 'value' | 'hint';
+  index: number;
+  value: string;
+  elapsed: number;
+};
+
 export type Game = {
   settings: GameSettings;
+  puzzle: Board;
+  moves: Move[];
+  cursor: number;
   boardValues: Board;
   givens: boolean[];
   boardHints: Board;
@@ -305,8 +317,11 @@ export type SelectAction = ['select', Position];
 export type HintModeAction = ['hintMode', boolean];
 export type ConfigureGameAction = ['configureGame', Partial<GameSettings>];
 export type TogglePauseAction = ['togglePause', null];
+export type UndoAction = ['undo', null];
+export type RedoAction = ['redo', null];
+export type SeekAction = ['seek', number];
 
-export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction | TogglePauseAction;
+export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction | TogglePauseAction | UndoAction | RedoAction | SeekAction;
 
 export const createGame = (settings: GameSettings, time: number): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
@@ -314,6 +329,9 @@ export const createGame = (settings: GameSettings, time: number): Game => {
 
   return {
     settings,
+    puzzle,
+    moves: [],
+    cursor: 0,
     boardValues: puzzle,
     givens: puzzle.map(value => value !== ''),
     boardHints: new Array(
@@ -341,40 +359,54 @@ export const createGameState = (settings: GameSettings, time: number): GameState
   game: createGame(settings, time)
 });
 
-const setGameValue = (game: Game, xDimension: number, value: string): Game => {
-  const selectedValuePosition = game.selectedPosition.y * (xDimension * xDimension) + game.selectedPosition.x;
-  const selectedValue = game.boardValues[selectedValuePosition];
+const moveFor = (game: Game, value: string, elapsedTime: number): Move | null => {
+  const xDimension = game.settings.xDimension;
+  const cell = game.selectedPosition.y * (xDimension * xDimension) + game.selectedPosition.x;
+  const selectedValue = game.boardValues[cell];
 
-  if (game.givens[selectedValuePosition]) {
-    return game;
+  if (game.givens[cell]) {
+    return null;
   }
 
   if (game.hintMode) {
 
     // If the selected position has a value on it, do not add hints to it, because the player won't be able to see them
     if (selectedValue !== '') {
-      return game;
+      return null;
     }
 
     const setCharacterIndex = game.alphabet.findIndex(character => character === value);
     if (setCharacterIndex === -1) {
-      return game;
+      return null;
     }
 
-    const selectedPosition = game.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (game.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
+    const index = game.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (game.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
 
-    const newValue = game.boardHints[selectedPosition] === value ? '' : value;
-    return {
-      ...game,
-      boardHints: setValue(game.boardHints, selectedPosition, newValue)
-    };
+    return { cell, kind: 'hint', index, value: game.boardHints[index] === value ? '' : value, elapsed: elapsedTime };
   }
 
   const newValue = selectedValue === value ? '' : value;
-  return {
+  return newValue === selectedValue ? null : { cell, kind: 'value', index: cell, value: newValue, elapsed: elapsedTime };
+}
+
+const applyMove = (game: Game, move: Move): Game => move.kind === 'value'
+  ? { ...game, boardValues: setValue(game.boardValues, move.index, move.value) }
+  : { ...game, boardHints: setValue(game.boardHints, move.index, move.value) };
+
+const positionOf = (cell: number, xDimension: number): Position => ({
+  x: cell % (xDimension * xDimension),
+  y: Math.floor(cell / (xDimension * xDimension))
+});
+
+const seekTo = (game: Game, cursor: number): Game => {
+  const replayed = game.moves.slice(0, cursor).reduce(applyMove, {
     ...game,
-    boardValues: setValue(game.boardValues, selectedValuePosition, newValue)
-  };
+    cursor,
+    boardValues: game.puzzle,
+    boardHints: game.boardHints.map(() => '')
+  });
+
+  return cursor === 0 ? replayed : { ...replayed, selectedPosition: positionOf(game.moves[cursor - 1].cell, game.settings.xDimension) };
 }
 
 const clamp = (min: number, max: number) => (value: number) => Math.min(max, Math.max(min, value));
@@ -396,8 +428,10 @@ const moveSelection = (position: Position, direction: MoveDirection, xDimension:
 
 export const isSolved = (board: Board) => board.every((value, position) => value !== '' && checkRules(ruleSetSudoku)(board, position, value));
 
-const pausedActions: GameAction[0][] = ['set', 'move', 'select'];
-const solvedActions: GameAction[0][] = ['set', 'togglePause'];
+const pausedActions: GameAction[0][] = ['set', 'move', 'select', 'undo', 'redo', 'seek'];
+const solvedActions: GameAction[0][] = ['set', 'togglePause', 'undo', 'redo', 'seek'];
+
+const stopWhenSolved = (game: Game, time: number): Game => isSolved(game.boardValues) ? { ...game, timer: { ...game.timer, stoppedAt: time } } : game;
 
 export const gameReducer = (state: GameState, action: GameAction, time: number): GameState => {
   const [type, value] = action;
@@ -408,8 +442,23 @@ export const gameReducer = (state: GameState, action: GameAction, time: number):
 
   switch (type) {
     case 'set': {
-      const game = setGameValue(state.game, state.game.settings.xDimension, value);
-      return { ...state, game: isSolved(game.boardValues) ? { ...game, timer: { ...game.timer, stoppedAt: time } } : game };
+      const game = state.game;
+      const move = moveFor(game, value, elapsed(game.timer, time));
+
+      if (move === null) {
+        return state;
+      }
+
+      const recorded = { ...game, moves: [...game.moves.slice(0, game.cursor), move], cursor: game.cursor + 1 };
+      return { ...state, game: stopWhenSolved(applyMove(recorded, move), time) };
+    }
+    case 'undo':
+      return state.game.cursor === 0 ? state : { ...state, game: seekTo(state.game, state.game.cursor - 1) };
+    case 'redo':
+      return state.game.cursor === state.game.moves.length ? state : { ...state, game: stopWhenSolved(seekTo(state.game, state.game.cursor + 1), time) };
+    case 'seek': {
+      const cursor = Math.max(0, Math.min(state.game.moves.length, value));
+      return cursor === state.game.cursor ? state : { ...state, game: stopWhenSolved(seekTo(state.game, cursor), time) };
     }
     case 'move':
       return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.game.settings.xDimension) } };

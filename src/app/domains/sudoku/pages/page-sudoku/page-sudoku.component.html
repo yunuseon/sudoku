@@ -1,7 +1,8 @@
 @if (boardConfig$ | async; as config) {
+  @let elapsed = (elapsed$ | async) ?? 0;
   <div class="game" [style.--background]="config.backgroundColor" [style.--foreground]="config.valueFontColor" [style.--accent]="config.mainBorderColor">
     <header class="bar">
-      <span class="time">{{ formatElapsed((elapsed$ | async) ?? 0) }}</span>
+      <span class="time">{{ formatElapsed(elapsed) }}</span>
       <div class="bar-actions">
         @if (!isStopped(config.timer)) {
           <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
@@ -10,11 +11,21 @@
       </div>
     </header>
 
+    <hks-sudoku-timeline
+      [moves]="config.moves"
+      [cursor]="config.cursor"
+      [elapsed]="elapsed"
+      [pixelsPerSecond]="config.timelinePixelsPerSecond"
+      (seek)="templateActions$.next(['seek', $event])" />
+
     <div class="board-area" (hksResize)="resize$.next($event)">
       <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
     </div>
 
     <div class="tools">
+      <button [disabled]="config.cursor === 0" (click)="templateActions$.next(['undo', null])">↶ undo</button>
+      <button [disabled]="config.cursor === config.moves.length" (click)="templateActions$.next(['redo', null])">redo ↷</button>
+      <span class="spacer"></span>
       <button [class.active]="config.hintMode" (click)="templateActions$.next(['hintMode', !config.hintMode])">notes</button>
       <button (click)="templateActions$.next(['set', ''])">delete</button>
     </div>

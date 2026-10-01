@@ -45,8 +45,11 @@
 
 .tools {
   display: flex;
-  justify-content: flex-end;
   gap: 6px;
+
+  .spacer {
+    flex: 1;
+  }
 
   button {
     min-height: 36px;
@@ -95,5 +98,10 @@ button {
   &.active {
     background: var(--accent);
     color: var(--background);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
 }
