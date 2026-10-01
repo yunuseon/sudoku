@@ -1,9 +1,9 @@
-import { Component, inject, NgZone, PLATFORM_ID } from '@angular/core';
+import { Component, inject, NgZone, PLATFORM_ID, DOCUMENT } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
-import { AsyncPipe, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
