@@ -18,7 +18,16 @@ $lane: 32px;
 .ruler {
   position: relative;
   height: $ruler;
-  border-bottom: 1px solid rgb(255 255 255 / 15%);
+}
+
+// not part of the moving track, so it always spans the full width
+.baseline {
+  position: absolute;
+  top: $ruler - 1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgb(255 255 255 / 15%);
 }
 
 .tick {
