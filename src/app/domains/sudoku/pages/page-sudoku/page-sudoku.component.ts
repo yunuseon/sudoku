@@ -2,13 +2,13 @@ import { Component, inject, PLATFORM_ID } from '@angular/core';
 import { Pane } from 'tweakpane';
 import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
-import { defer, EMPTY, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, withLatestFrom } from 'rxjs';
+import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ConfigureGameAction, createGameState, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, MoveAction, SetAction } from '../../logic/sudoku.logic';
+import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getHighlightedCells, getMatchingCells, HintModeAction, isPaused, MoveAction, SetAction, Timer, TogglePauseAction } from '../../logic/sudoku.logic';
 import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
 
-type KeyAction = SetAction | MoveAction;
+type KeyAction = SetAction | MoveAction | TogglePauseAction;
 
 type ConfigureBoardAction = ['configureBoard', Partial<BoardSettings>];
 type CopyConfigAction = ['copyConfig', null];
@@ -35,7 +35,25 @@ const keyboardSettings: KeyBindings = {
   'ArrowRight': ['move', 'right'],
   'ArrowUp': ['move', 'up'],
   'ArrowDown': ['move', 'down'],
+  'KeyP': ['togglePause', null],
 };
+
+// unlike Date.now() this cannot jump when the system clock changes
+const now = () => performance.timeOrigin + performance.now();
+
+// emits the elapsed time now and then exactly when the next full second is reached, nothing while paused
+const elapsedSeconds$ = (gameTimer: Timer): Observable<number> => isPaused(gameTimer)
+  ? of(elapsed(gameTimer, now()))
+  : defer(() => of(elapsed(gameTimer, now()))).pipe(
+    expand(current => timer(1000 - current % 1000).pipe(
+      map(() => elapsed(gameTimer, now()))
+    ))
+  );
+
+const formatElapsed = (elapsed: number) => {
+  const seconds = Math.floor(elapsed / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 
 const gameSettings = {
   "xDimension": 3,
@@ -73,9 +91,11 @@ const createRandomSeed = () => Math.floor(Math.random() * 2 ** 32);
 
 type PageState = GameState & { boardSettings: BoardSettings };
 
-const pageReducer = (state: PageState, action: StateAction): PageState => action[0] === 'configureBoard'
+type TimedAction<A> = [A, number];
+
+const pageReducer = (state: PageState, [action, time]: TimedAction<StateAction>): PageState => action[0] === 'configureBoard'
   ? { ...state, boardSettings: { ...state.boardSettings, ...action[1] } }
-  : { ...state, ...gameReducer(state, action) };
+  : { ...state, ...gameReducer(state, action, time) };
 
 const toBoardConfig = (state: PageState) => ({
   ...state.game.settings,
@@ -203,7 +223,7 @@ export class PageSudokuComponent {
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private readonly initialState: PageState = {
-    ...createGameState({ ...gameSettings, seed: createRandomSeed() }),
+    ...createGameState({ ...gameSettings, seed: createRandomSeed() }, now()),
     boardSettings
   };
 
@@ -231,14 +251,25 @@ export class PageSudokuComponent {
     this.templateActions$,
     this.debugActions$
   ).pipe(
+    map((action): TimedAction<PageAction> => [action, now()]),
     share()
   );
 
   private readonly state$ = this.actions$.pipe(
-    filter((action): action is StateAction => action[0] !== 'copyConfig'),
+    filter((timed): timed is TimedAction<StateAction> => timed[0][0] !== 'copyConfig'),
     scan(pageReducer, this.initialState),
     startWith(this.initialState),
     shareReplay({ bufferSize: 1, refCount: true })
+  );
+
+  protected readonly formatElapsed = formatElapsed;
+  protected readonly isPaused = isPaused;
+
+  // the server renders the elapsed time once, a running clock would keep it from ever finishing
+  public readonly elapsed$ = this.state$.pipe(
+    map(state => state.game.timer),
+    distinctUntilChanged(),
+    switchMap(gameTimer => this.isBrowser ? elapsedSeconds$(gameTimer) : of(elapsed(gameTimer, now())))
   );
 
   public readonly boardConfig$ = this.state$.pipe(
@@ -246,7 +277,7 @@ export class PageSudokuComponent {
   );
 
   private readonly copyConfigEffect = this.actions$.pipe(
-    filter(([type]) => type === 'copyConfig'),
+    filter(([[type]]) => type === 'copyConfig'),
     withLatestFrom(this.boardConfig$),
     takeUntilDestroyed()
   ).subscribe(([, config]) => navigator.clipboard.writeText(JSON.stringify(config)));

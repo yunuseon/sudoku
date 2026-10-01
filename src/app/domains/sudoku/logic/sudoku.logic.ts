@@ -256,6 +256,20 @@ export type GameSettings = {
   seed: number;
 };
 
+export type Timer = {
+  startedAt: number;
+  pausedAt: number | null;
+  pausedTotal: number;
+};
+
+export const isPaused = (timer: Timer) => timer.pausedAt !== null;
+
+export const elapsed = (timer: Timer, time: number) => (timer.pausedAt ?? time) - timer.startedAt - timer.pausedTotal;
+
+const togglePause = (timer: Timer, time: number): Timer => timer.pausedAt === null
+  ? { ...timer, pausedAt: time }
+  : { ...timer, pausedAt: null, pausedTotal: timer.pausedTotal + time - timer.pausedAt };
+
 export type Game = {
   settings: GameSettings;
   boardValues: Board;
@@ -263,6 +277,7 @@ export type Game = {
   selectedPosition: Position;
   hintMode: boolean;
   alphabet: string[];
+  timer: Timer;
 };
 
 export type GameState = {
@@ -278,10 +293,11 @@ export type MoveAction = ['move', MoveDirection];
 export type SelectAction = ['select', Position];
 export type HintModeAction = ['hintMode', boolean];
 export type ConfigureGameAction = ['configureGame', Partial<GameSettings>];
+export type TogglePauseAction = ['togglePause', null];
 
-export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction;
+export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction | TogglePauseAction;
 
-export const createGame = (settings: GameSettings): Game => {
+export const createGame = (settings: GameSettings, time: number): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
 
   return {
@@ -296,7 +312,8 @@ export const createGame = (settings: GameSettings): Game => {
       y: 0
     },
     hintMode: false,
-    alphabet
+    alphabet,
+    timer: { startedAt: time, pausedAt: null, pausedTotal: 0 }
   };
 }
 
@@ -306,9 +323,9 @@ const maxDimension = 5;
 export const isPlayable = (settings: GameSettings) =>
   Number.isInteger(settings.xDimension) && settings.xDimension >= 1 && settings.xDimension <= maxDimension && settings.xDimension === settings.yDimension;
 
-export const createGameState = (settings: GameSettings): GameState => ({
+export const createGameState = (settings: GameSettings, time: number): GameState => ({
   settings,
-  game: createGame(settings)
+  game: createGame(settings, time)
 });
 
 const setGameValue = (game: Game, xDimension: number, value: string): Game => {
@@ -360,8 +377,14 @@ const moveSelection = (position: Position, direction: MoveDirection, xDimension:
   }
 }
 
-export const gameReducer = (state: GameState, action: GameAction): GameState => {
+const pausedActions: GameAction[0][] = ['set', 'move', 'select'];
+
+export const gameReducer = (state: GameState, action: GameAction, time: number): GameState => {
   const [type, value] = action;
+
+  if (isPaused(state.game.timer) && pausedActions.includes(type)) {
+    return state;
+  }
 
   switch (type) {
     case 'set':
@@ -372,9 +395,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, game: { ...state.game, selectedPosition: value } };
     case 'hintMode':
       return { ...state, game: { ...state.game, hintMode: value } };
+    case 'togglePause':
+      return { ...state, game: { ...state.game, timer: togglePause(state.game.timer, time) } };
     case 'configureGame': {
       const settings = { ...state.settings, ...value };
-      return { settings, game: isPlayable(settings) ? createGame(settings) : state.game };
+      return { settings, game: isPlayable(settings) ? createGame(settings, time) : state.game };
     }
   }
 }

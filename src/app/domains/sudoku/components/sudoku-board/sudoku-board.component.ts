@@ -2,7 +2,7 @@ import { afterRenderEffect, Component, ElementRef, inject, input } from '@angula
 import { outputFromObservable } from '@angular/core/rxjs-interop';
 import { filter, fromEvent, map } from 'rxjs';
 import { BoardConfig } from '../../pages/page-sudoku/page-sudoku.component';
-import { Position } from '../../logic/sudoku.logic';
+import { isPaused, Position } from '../../logic/sudoku.logic';
 
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -294,6 +294,10 @@ export class SudokuBoardComponent {
 
             const boardIndex = valueY * (config.xDimension * config.xDimension) + valueX;
             const val = config.boardValues[boardIndex];
+
+            if (isPaused(config.timer)) {
+              return;
+            }
 
             if (val !== '') {
               const isMatching = config.matchingCells[boardIndex];

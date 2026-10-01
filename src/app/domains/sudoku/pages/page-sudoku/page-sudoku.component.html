@@ -1,6 +1,10 @@
 <p>page-sudoku works!</p>
 
 @if (boardConfig$ | async; as config) {
+  <div>
+    <span>{{ formatElapsed((elapsed$ | async) ?? 0) }}</span>
+    <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
+  </div>
   <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
   <div>
     @for (item of config.alphabet; track item) {
