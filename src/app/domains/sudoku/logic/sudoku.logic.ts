@@ -113,15 +113,7 @@ const shuffle = <T>(items: T[]): Random<T[]> => seed => items.reduceRight<[T[], 
   return [shuffled.map((item, k) => k === i ? shuffled[j] : k === j ? shuffled[i] : item), nextSeed];
 }, [items, seed]);
 
-const setValue = (board: Board, position: number, value: string): Board => board.map((current, i) => i === position ? value : current);
-
-const getCandidates = (board: Board, position: number, alphabet: string[]) => alphabet.filter(value => checkRules(ruleSetSudoku)(board, position, value));
-
-const getMostConstrainedPosition = (board: Board, alphabet: string[]) => board
-  .map((value, position) => ({ value, position }))
-  .filter(({ value }) => value === '')
-  .map(({ position }) => ({ position, candidates: getCandidates(board, position, alphabet) }))
-  .reduce<{ position: number, candidates: string[] } | null>((best, current) => best === null || current.candidates.length < best.candidates.length ? current : best, null);
+const setValue = <T>(items: T[], position: number, value: T): T[] => items.map((current, i) => i === position ? value : current);
 
 const range = (length: number) => new Array(length).fill(0).map((_, i) => i);
 
@@ -148,19 +140,87 @@ const createSolution = (dimension: number, alphabet: string[]): Random<Board> =>
   return [board, nextSeed];
 }
 
-const countSolutions = (board: Board, alphabet: string[], limit: number): number => {
-  const next = getMostConstrainedPosition(board, alphabet);
+// Symbols are indices into the alphabet, -1 is an empty cell. Each row, column and box keeps a bitmask of its used symbols.
+type Grid = {
+  cells: number[];
+  rows: number[];
+  columns: number[];
+  boxes: number[];
+  dimension: number;
+};
 
-  if (next === null) {
-    return 1;
-  }
-
-  return next.candidates.reduce((count, value) => count >= limit ? count : count + countSolutions(setValue(board, next.position, value), alphabet, limit - count), 0);
+const boxOf = (dimension: number, cell: number) => {
+  const n = dimension * dimension;
+  return Math.floor(Math.floor(cell / n) / dimension) * dimension + Math.floor((cell % n) / dimension);
 }
 
-const hasUniqueSolution = (board: Board, alphabet: string[]) => countSolutions(board, alphabet, 2) === 1;
+const place = (grid: Grid, cell: number, symbol: number): Grid => {
+  const n = grid.dimension * grid.dimension;
+  const bit = 1 << symbol;
+  const row = Math.floor(cell / n);
+  const column = cell % n;
+  const box = boxOf(grid.dimension, cell);
 
-const carvePuzzle = (solution: Board, alphabet: string[], givens: number): Random<Board> => seed => {
+  return {
+    ...grid,
+    cells: setValue(grid.cells, cell, symbol),
+    rows: setValue(grid.rows, row, grid.rows[row] | bit),
+    columns: setValue(grid.columns, column, grid.columns[column] | bit),
+    boxes: setValue(grid.boxes, box, grid.boxes[box] | bit)
+  };
+}
+
+const toGrid = (board: Board, alphabet: string[], dimension: number): Grid => {
+  const used = new Array(alphabet.length).fill(0);
+  const empty: Grid = { cells: board.map(() => -1), rows: used, columns: used, boxes: used, dimension };
+
+  return board.reduce((grid, value, cell) => value === '' ? grid : place(grid, cell, alphabet.indexOf(value)), empty);
+}
+
+const candidatesOf = (grid: Grid, cell: number) => {
+  const n = grid.dimension * grid.dimension;
+  const used = grid.rows[Math.floor(cell / n)] | grid.columns[cell % n] | grid.boxes[boxOf(grid.dimension, cell)];
+
+  return range(n).filter(symbol => (used & (1 << symbol)) === 0);
+}
+
+const getMostConstrainedCell = (grid: Grid) => grid.cells.reduce<{ cell: number, candidates: number[] } | null>((best, symbol, cell) => {
+  if (symbol !== -1 || best?.candidates.length === 0) {
+    return best;
+  }
+
+  const candidates = candidatesOf(grid, cell);
+  return best === null || candidates.length < best.candidates.length ? { cell, candidates } : best;
+}, null);
+
+type Search = { count: number, steps: number };
+
+// A search that runs out of steps counts as having infinitely many solutions, so the value is kept
+const countSolutions = (grid: Grid, limit: number, maxSteps: number): Search => {
+  if (maxSteps <= 0) {
+    return { count: Infinity, steps: 0 };
+  }
+
+  const next = getMostConstrainedCell(grid);
+
+  if (next === null) {
+    return { count: 1, steps: 1 };
+  }
+
+  return next.candidates.reduce<Search>((search, symbol) => {
+    if (search.count >= limit) {
+      return search;
+    }
+
+    const branch = countSolutions(place(grid, next.cell, symbol), limit - search.count, maxSteps - search.steps);
+    return { count: search.count + branch.count, steps: search.steps + branch.steps };
+  }, { count: 0, steps: 1 });
+}
+
+// Only a safety limit for a single uniqueness check, typical boards stay far below it
+const maxSearchSteps = 100;
+
+const carvePuzzle = (solution: Board, alphabet: string[], dimension: number, givens: number): Random<Board> => seed => {
   const [positions, nextSeed] = shuffle(solution.map((_, i) => i))(seed);
 
   const puzzle = positions.reduce((board, position) => {
@@ -170,13 +230,13 @@ const carvePuzzle = (solution: Board, alphabet: string[], givens: number): Rando
     }
 
     const candidate = setValue(board, position, '');
-    return hasUniqueSolution(candidate, alphabet) ? candidate : board;
+    return countSolutions(toGrid(candidate, alphabet, dimension), 2, maxSearchSteps).count === 1 ? candidate : board;
   }, solution);
 
   return [puzzle, nextSeed];
 }
 
-export const createSudoku = (config: { dimension: number, alphabet: string[], givens: number, seed: number }) => {
+export const createSudoku = (config: { dimension: number, alphabet: string[], givensRatio: number, seed: number }) => {
   const n = config.dimension * config.dimension;
 
   if (config.alphabet.length !== n) {
@@ -184,7 +244,7 @@ export const createSudoku = (config: { dimension: number, alphabet: string[], gi
   }
 
   const [solution, nextSeed] = createSolution(config.dimension, config.alphabet)(config.seed);
-  const [puzzle] = carvePuzzle(solution, config.alphabet, config.givens)(nextSeed);
+  const [puzzle] = carvePuzzle(solution, config.alphabet, config.dimension, Math.round(config.givensRatio * n * n))(nextSeed);
 
   return { solution, puzzle };
 }
@@ -192,7 +252,7 @@ export const createSudoku = (config: { dimension: number, alphabet: string[], gi
 export type GameSettings = {
   xDimension: number;
   yDimension: number;
-  givens: number;
+  givensRatio: number;
   seed: number;
 };
 
@@ -226,7 +286,7 @@ export const createGame = (settings: GameSettings): Game => {
 
   return {
     settings,
-    boardValues: createSudoku({ dimension: settings.xDimension, alphabet, givens: settings.givens, seed: settings.seed }).puzzle,
+    boardValues: createSudoku({ dimension: settings.xDimension, alphabet, givensRatio: settings.givensRatio, seed: settings.seed }).puzzle,
     boardHints: new Array(
       settings.xDimension * settings.xDimension * settings.xDimension *
       settings.yDimension * settings.yDimension * settings.yDimension
@@ -240,8 +300,11 @@ export const createGame = (settings: GameSettings): Game => {
   };
 }
 
+// the solver keeps used symbols as bitmasks, a 6x6 box would need 36 bits
+const maxDimension = 5;
+
 export const isPlayable = (settings: GameSettings) =>
-  Number.isInteger(settings.xDimension) && settings.xDimension >= 1 && settings.xDimension === settings.yDimension;
+  Number.isInteger(settings.xDimension) && settings.xDimension >= 1 && settings.xDimension <= maxDimension && settings.xDimension === settings.yDimension;
 
 export const createGameState = (settings: GameSettings): GameState => ({
   settings,

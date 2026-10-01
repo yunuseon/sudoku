@@ -40,7 +40,7 @@ const keyboardSettings: KeyBindings = {
 const gameSettings = {
   "xDimension": 3,
   "yDimension": 3,
-  "givens": 25,
+  "givensRatio": 0.31,
 };
 
 const boardSettings = {
@@ -113,7 +113,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   const game$ = merge(
     fromBinding$(gameFolder, PARAMS, 'xDimension', { step: 1, min: 1 }),
     fromBinding$(gameFolder, PARAMS, 'yDimension', { step: 1, min: 1 }),
-    fromBinding$(gameFolder, PARAMS, 'givens', { step: 1, min: 0 }),
+    fromBinding$(gameFolder, PARAMS, 'givensRatio', { min: 0, max: 1, step: 0.01 }),
     fromBinding$(gameFolder, PARAMS, 'seed', { step: 1 })
   );
   const newGame$ = fromButton$(gameFolder, 'new game');
