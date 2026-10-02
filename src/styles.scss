@@ -45,11 +45,6 @@ h1, h2, h3, h4, h5, h6 {
   isolation: isolate;
 }
 
-[page] {
-  display: block;
-  height: 100%;
-}
-
 // the debug pane (development builds only) sits at the bottom edge, so it doesn't cover the game controls
 body > .tp-dfwv {
   position: fixed;

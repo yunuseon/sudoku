@@ -1,19 +1,18 @@
 import { Component, inject, isDevMode, PLATFORM_ID, DOCUMENT } from '@angular/core';
 import { Pane } from 'tweakpane';
-import { PageDirective } from '../../../../core/directives/page.directive';
 import { SudokuBoardComponent } from '../../components/sudoku-board/sudoku-board.component';
 import { SudokuTimelineComponent } from '../../components/sudoku-timeline/sudoku-timeline.component';
 import { formatElapsed } from '../../components/format-elapsed';
 import { type Level, levels } from '../../logic/difficulty';
 import { BoardSettings, boardSettings, createSampleState } from '../../theme/theme';
 import { ThemeMenuComponent } from '../../components/theme-menu/theme-menu.component';
-import { ResizeDirective, Size } from '../../../../core/directives/resize.directive';
-import { now } from '../../../../core/time/now';
+import { ResizeDirective, Size } from '../../core/directives/resize.directive';
+import { now } from '../../core/time/now';
 import { defer, distinctUntilChanged, EMPTY, expand, filter, fromEvent, map, merge, Observable, of, scan, share, shareReplay, startWith, Subject, switchMap, timer, withLatestFrom } from 'rxjs';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfigureGameAction, createGameState, elapsed, GameAction, gameReducer, GameState, getConflictingCells, getHighlightedCells, getMatchingCells, getRemainingCounts, HintModeAction, isPaused, isRunning, isStopped, MoveAction, RedoAction, SetAction, Timer, TogglePauseAction, UndoAction } from '../../logic/sudoku.logic';
-import { fromBinding$, fromButton$ } from '../../../../core/tweakpane/tweakpane-rx';
+import { fromBinding$, fromButton$ } from '../../core/tweakpane/tweakpane-rx';
 
 type KeyAction = SetAction | MoveAction | TogglePauseAction | UndoAction | RedoAction;
 
@@ -219,8 +218,7 @@ const createDebugPane$ = (config: BoardConfig): Observable<DebugAction> => new O
   selector: 'hks-page-sudoku',
   imports: [SudokuBoardComponent, SudokuTimelineComponent, ThemeMenuComponent, AsyncPipe, ResizeDirective],
   templateUrl: './page-sudoku.component.html',
-  styleUrl: './page-sudoku.component.scss',
-  hostDirectives: [PageDirective]
+  styleUrl: './page-sudoku.component.scss'
 })
 export class PageSudokuComponent {
   private readonly document = inject(DOCUMENT);

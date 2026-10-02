@@ -1,13 +1,13 @@
 import { Routes } from '@angular/router';
+import { PageSudokuComponent } from './pages/page-sudoku/page-sudoku.component';
 
 export const routes: Routes = [
   {
     path: '',
-    pathMatch: 'full',
-    redirectTo: 'sudoku'
+    component: PageSudokuComponent
   },
   {
-    path: 'sudoku',
-    loadChildren: () => import('./domains/sudoku/sudoku.routes')
+    path: '**',
+    redirectTo: ''
   }
 ];

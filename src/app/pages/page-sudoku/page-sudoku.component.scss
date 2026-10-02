@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 .game {
   --gutter-left: max(12px, env(safe-area-inset-left));
   --gutter-right: max(12px, env(safe-area-inset-right));

@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "yunusozturk.de": {
+    "sudoku": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -17,7 +17,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/yunusozturk.de",
+            "outputPath": "dist/sudoku",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
@@ -71,10 +71,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "yunusozturk.de:build:production"
+              "buildTarget": "sudoku:build:production"
             },
             "development": {
-              "buildTarget": "yunusozturk.de:build:development"
+              "buildTarget": "sudoku:build:development"
             }
           },
           "defaultConfiguration": "development"

@@ -1,5 +1,5 @@
 {
-  "name": "yunusozturk.de",
+  "name": "sudoku",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
@@ -7,7 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:yunusozturk.de": "node dist/yunusozturk.de/server/server.mjs"
+    "serve:ssr:sudoku": "node dist/sudoku/server/server.mjs"
   },
   "private": true,
   "dependencies": {

@@ -2,7 +2,7 @@ import { afterRenderEffect, Component, ElementRef, inject, input, output, viewCh
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { animationFrames, EMPTY, fromEvent } from 'rxjs';
 import { elapsed, Move, Timer } from '../../logic/sudoku.logic';
-import { now } from '../../../../core/time/now';
+import { now } from '../../core/time/now';
 
 const padding = 16;
 const playheadInset = 12;
