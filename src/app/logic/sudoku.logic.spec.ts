@@ -345,6 +345,32 @@ describe('getVisibleHints', () => {
     expect(notesOf(visible, outside)).toEqual([value]);
   });
 
+  it('shows a hidden note again when it is entered, so a note can always be set', () => {
+    const tap = (clearsHidden: boolean) =>
+      gameReducer(
+        gameReducer(
+          gameReducer(placed, ['hintMode', true], 3000),
+          ['select', { x: column(inColumn), y: row(inColumn) }],
+          3000
+        ),
+        ['set', value],
+        3000,
+        { hideRuledOutNotes: clearsHidden }
+      );
+
+    expect(notesOf(getVisibleHints(tap(true).game), inColumn)).toEqual([value]);
+    expect(notesOf(getVisibleHints(tap(true).game), inBox)).toEqual([]);
+    expect(notesOf(tap(false).game.boardHints, inColumn)).toEqual([]);
+  });
+
+  it('never hides notes because of the given numbers', () => {
+    const given = start.game.puzzle.findIndex(symbol => symbol !== '');
+    const peer = open.find(cell => related(cell, given))!;
+    const noted = gameReducer(note(start, peer, start.game.puzzle[given]), ['hintMode', false], 0);
+
+    expect(notesOf(getVisibleHints(noted.game), peer)).toContain(start.game.puzzle[given]);
+  });
+
   it('only hides them, so they are back once the number is removed', () => {
     expect(placed.game.boardHints).toEqual(withNotes.game.boardHints);
 

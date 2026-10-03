@@ -327,7 +327,12 @@ export const pageReducer = (
         : { ...state, replay: replayReducer(state.replay, value, time) };
     default:
       return state.replay === null && state.pending === null
-        ? { ...state, ...gameReducer(state, action, time) }
+        ? {
+            ...state,
+            ...gameReducer(state, action, time, {
+              hideRuledOutNotes: state.preferences.hideRuledOutNotes
+            })
+          }
         : state;
   }
 };

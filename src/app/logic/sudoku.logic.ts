@@ -95,14 +95,26 @@ export const getRemainingCounts = (board: Board, alphabet: string[]) =>
     Math.max(0, alphabet.length - board.filter(value => value === symbol).length)
   );
 
+const lastMoveAt = (moves: Move[], size: number, kind: Move['kind']) =>
+  moves.reduce(
+    (times, move, i) => (move.kind === kind ? setValue(times, move.index, i) : times),
+    new Array<number>(size).fill(-1)
+  );
+
 export const getVisibleHints = (game: Game): Board => {
   const xDimension = game.settings.xDimension;
   const n = xDimension * xDimension;
+  const moves = game.moves.slice(0, game.cursor);
+  const placedAt = lastMoveAt(moves, game.boardValues.length, 'value');
+  const notedAt = lastMoveAt(moves, game.boardHints.length, 'hint');
 
-  const isRuledOut = (cell: number, symbol: number) => {
+  const isRuledOut = (cell: number, symbol: number, index: number) => {
     const peers = getHighlightedCells(xDimension, { x: cell % n, y: Math.floor(cell / n) });
     return peers.some(
-      (isPeer, other) => isPeer && game.boardValues[other] === game.alphabet[symbol]
+      (isPeer, other) =>
+        isPeer &&
+        game.boardValues[other] === game.alphabet[symbol] &&
+        placedAt[other] > notedAt[index]
     );
   };
 
@@ -110,7 +122,7 @@ export const getVisibleHints = (game: Game): Board => {
     game.boardValues.flatMap((_, cell) =>
       game.alphabet.flatMap((_, symbol) => {
         const index = hintIndex(xDimension, cell, symbol);
-        return game.boardHints[index] !== '' && isRuledOut(cell, symbol) ? [index] : [];
+        return game.boardHints[index] !== '' && isRuledOut(cell, symbol, index) ? [index] : [];
       })
     )
   );
@@ -555,7 +567,14 @@ export const createGameState = (settings: GameSettings, time: number): GameState
   game: createGame(settings, time)
 });
 
-const moveFor = (game: Game, value: string, elapsedTime: number): Move | null => {
+export type InputOptions = { hideRuledOutNotes: boolean };
+
+const moveFor = (
+  game: Game,
+  value: string,
+  elapsedTime: number,
+  options: InputOptions
+): Move | null => {
   const xDimension = game.settings.xDimension;
   const cell = game.selectedPosition.y * (xDimension * xDimension) + game.selectedPosition.x;
   const selectedValue = game.boardValues[cell];
@@ -575,12 +594,13 @@ const moveFor = (game: Game, value: string, elapsedTime: number): Move | null =>
     }
 
     const index = hintIndex(xDimension, cell, symbol);
+    const shown = options.hideRuledOutNotes ? getVisibleHints(game)[index] : game.boardHints[index];
 
     return {
       cell,
       kind: 'hint',
       index,
-      value: game.boardHints[index] === value ? '' : value,
+      value: shown === value ? '' : value,
       elapsed: elapsedTime
     };
   }
@@ -683,7 +703,12 @@ const stopWhenFinished = (game: Game, time: number): Game =>
     ? { ...game, timer: { ...game.timer, stoppedAt: time } }
     : game;
 
-export const gameReducer = (state: GameState, action: GameAction, time: number): GameState => {
+export const gameReducer = (
+  state: GameState,
+  action: GameAction,
+  time: number,
+  options: InputOptions = { hideRuledOutNotes: false }
+): GameState => {
   const [type, value] = action;
 
   if (
@@ -696,7 +721,7 @@ export const gameReducer = (state: GameState, action: GameAction, time: number):
   switch (type) {
     case 'set': {
       const game = state.game;
-      const move = moveFor(game, value, elapsed(game.timer, time));
+      const move = moveFor(game, value, elapsed(game.timer, time), options);
 
       if (move === null) {
         return state;
