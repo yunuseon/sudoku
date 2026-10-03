@@ -1,6 +1,6 @@
 # Sudoku
 
-A mobile-first sudoku game built with Angular: generated puzzles by difficulty, notes, undo/redo with a timeline, and themes.
+A mobile-first sudoku game built with Angular: generated puzzles by difficulty, notes, undo/redo with a timeline, and themes. It installs as an app (on iPhone: Share → Add to Home Screen) and works offline.
 
 ## Development
 
@@ -30,13 +30,19 @@ npm run build
 
 The output in `dist/sudoku/browser` is static and can be served by any web server.
 
-## Docker
+## Deployment
+
+Everything about serving the app lives in [deploy/](deploy), the app itself knows nothing about it:
+
+- [Dockerfile](deploy/Dockerfile) builds the app and serves the static files with nginx as a non-root user on port 8080, configured by [nginx.conf](deploy/nginx.conf).
+- Every push to `main` publishes the image as `ghcr.io/yunuseon/sudoku` (amd64 and arm64) through GitHub Actions.
+- [compose.yml](deploy/compose.yml) runs that image on the NAS next to Nginx Proxy Manager, which reaches it at `http://sudoku:8080`.
+
+To run the image locally:
 
 ```bash
-docker build -t sudoku .
+docker build -f deploy/Dockerfile -t sudoku .
 docker run --rm -p 8080:8080 sudoku
 ```
 
-Open `http://localhost:8080/`. The image serves the static build with nginx as a non-root user on port 8080.
-
-Every push to `main` publishes `ghcr.io/yunuseon/sudoku` (amd64 and arm64) through GitHub Actions. [compose.yml](compose.yml) runs that image on port 18081, e.g. as a project in a NAS's Docker app.
+Then open `http://localhost:8080/`.

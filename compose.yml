@@ -1,7 +1,0 @@
-services:
-  sudoku:
-    image: ghcr.io/yunuseon/sudoku:latest
-    pull_policy: always
-    restart: unless-stopped
-    ports:
-      - "18081:8080"

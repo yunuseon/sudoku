@@ -2,10 +2,7 @@ node_modules
 dist
 .angular
 .git
+.github
 .idea
 .vscode
 .claude
-Dockerfile
-.dockerignore
-.github
-compose.yml

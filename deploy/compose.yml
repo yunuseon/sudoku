@@ -1,0 +1,13 @@
+services:
+  sudoku:
+    image: ghcr.io/yunuseon/sudoku:latest
+    container_name: sudoku
+    pull_policy: always
+    restart: unless-stopped
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: nginx-proxy-manager_proxy
+    external: true
