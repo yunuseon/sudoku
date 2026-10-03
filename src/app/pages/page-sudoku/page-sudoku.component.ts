@@ -62,6 +62,7 @@ import {
   getHighlightedCells,
   getMatchingCells,
   getRemainingCounts,
+  getVisibleHints,
   getWrongCells,
   isLost,
   isRunning,
@@ -382,6 +383,9 @@ export const toBoardConfig = (state: BoardState, generating = false) => ({
     state.game.selectedPosition
   ),
   matchingCells: getMatchingCells(state.game.boardValues, state.game.selectedPosition),
+  boardHints: state.preferences.hideRuledOutNotes
+    ? getVisibleHints(state.game)
+    : state.game.boardHints,
   wrongCells: getWrongCells(state.game),
   lost: isLost(state.game),
   remainingCounts: getRemainingCounts(state.game.boardValues, state.game.alphabet),

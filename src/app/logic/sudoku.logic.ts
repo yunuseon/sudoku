@@ -95,6 +95,29 @@ export const getRemainingCounts = (board: Board, alphabet: string[]) =>
     Math.max(0, alphabet.length - board.filter(value => value === symbol).length)
   );
 
+export const getVisibleHints = (game: Game): Board => {
+  const xDimension = game.settings.xDimension;
+  const n = xDimension * xDimension;
+
+  const isRuledOut = (cell: number, symbol: number) => {
+    const peers = getHighlightedCells(xDimension, { x: cell % n, y: Math.floor(cell / n) });
+    return peers.some(
+      (isPeer, other) => isPeer && game.boardValues[other] === game.alphabet[symbol]
+    );
+  };
+
+  const hidden = new Set(
+    game.boardValues.flatMap((_, cell) =>
+      game.alphabet.flatMap((_, symbol) => {
+        const index = hintIndex(xDimension, cell, symbol);
+        return game.boardHints[index] !== '' && isRuledOut(cell, symbol) ? [index] : [];
+      })
+    )
+  );
+
+  return game.boardHints.map((hint, index) => (hidden.has(index) ? '' : hint));
+};
+
 export const getMatchingCells = (board: Board, selectedPosition: Position) => {
   const n = Math.sqrt(board.length);
   const selectedValue = board[selectedPosition.y * n + selectedPosition.x];

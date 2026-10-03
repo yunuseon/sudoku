@@ -7,7 +7,9 @@ import {
   GameSettings,
   GameState,
   getRemainingCounts,
+  getVisibleHints,
   getWrongCells,
+  hintIndex,
   isLost,
   isSolved,
   isStopped
@@ -275,5 +277,81 @@ describe('undo, redo and seek', () => {
     const redone = gameReducer(back, ['redo', null], 11000);
     expect(isSolved(redone.game.boardValues)).toBe(true);
     expect(redone.game.timer.stoppedAt).toBe(11000);
+  });
+});
+
+describe('getVisibleHints', () => {
+  const start = createGameState({ ...settings, mistakeLimit: null }, 0);
+  const open = start.game.givens.flatMap((isGiven, cell) => (isGiven ? [] : [cell]));
+  const row = (cell: number) => Math.floor(cell / 9);
+  const column = (cell: number) => cell % 9;
+  const box = (cell: number) => Math.floor(row(cell) / 3) * 3 + Math.floor(column(cell) / 3);
+  const related = (a: number, b: number) =>
+    row(a) === row(b) || column(a) === column(b) || box(a) === box(b);
+
+  const freeOf = (cell: number, symbol: string) =>
+    !start.game.puzzle.some((given, other) => related(other, cell) && given === symbol);
+  const candidates = (target: number) => {
+    const value = start.game.solution[target];
+    const peers = open.filter(cell => cell !== target && freeOf(cell, value));
+
+    return {
+      inRow: peers.find(cell => row(cell) === row(target)),
+      inColumn: peers.find(cell => column(cell) === column(target)),
+      inBox: peers.find(
+        cell =>
+          box(cell) === box(target) && row(cell) !== row(target) && column(cell) !== column(target)
+      ),
+      outside: open.find(cell => !related(cell, target) && freeOf(cell, value))
+    };
+  };
+  const target = open.find(cell =>
+    Object.values(candidates(cell)).every(found => found !== undefined)
+  )!;
+  const { inRow, inColumn, inBox, outside } = candidates(target) as Record<string, number>;
+  const value = start.game.solution[target];
+  const other = start.game.alphabet.find(symbol => symbol !== value && freeOf(inRow, symbol))!;
+
+  const note = (state: GameState, cell: number, symbol: string) =>
+    gameReducer(
+      gameReducer(
+        gameReducer(state, ['hintMode', true], 0),
+        ['select', { x: column(cell), y: row(cell) }],
+        0
+      ),
+      ['set', symbol],
+      0
+    );
+  const withNotes = gameReducer(
+    [inRow, inColumn, inBox, outside].reduce(
+      (state, cell) => note(state, cell, value),
+      note(start, inRow, other)
+    ),
+    ['hintMode', false],
+    0
+  );
+  const placed = gameReducer(
+    gameReducer(withNotes, ['select', { x: column(target), y: row(target) }], 1000),
+    ['set', value],
+    1000
+  );
+  const notesOf = (hints: string[], cell: number) =>
+    start.game.alphabet.filter((_, symbol) => hints[hintIndex(3, cell, symbol)] !== '');
+
+  it('hides notes of a placed number in its row, column and box only', () => {
+    const visible = getVisibleHints(placed.game);
+
+    expect([inRow, inColumn, inBox].map(cell => notesOf(visible, cell))).toEqual([[other], [], []]);
+    expect(notesOf(visible, outside)).toEqual([value]);
+  });
+
+  it('only hides them, so they are back once the number is removed', () => {
+    expect(placed.game.boardHints).toEqual(withNotes.game.boardHints);
+
+    const removed = gameReducer(placed, ['set', ''], 2000);
+    expect(getVisibleHints(removed.game)).toEqual(getVisibleHints(withNotes.game));
+    expect(
+      [inRow, inColumn, inBox].map(cell => notesOf(getVisibleHints(removed.game), cell))
+    ).toEqual([[value, other].sort(), [value], [value]]);
   });
 });

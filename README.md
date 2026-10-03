@@ -14,7 +14,7 @@ A sudoku for your phone that works anywhere, even without a connection. Free, op
 - **Works offline.** Add it to your home screen and it runs like an app, with or without internet.
 - **Endless puzzles, honestly rated.** Every puzzle is generated on your device and has exactly one solution. Its difficulty (easy, medium, hard, expert) comes from the solving techniques a human needs, not from counting the given numbers.
 - **Watch your best games again.** Your ten best times per difficulty are kept move by move. Replay them with play and pause, step through single moves, or speed up to 8×.
-- **Play your way.** Notes, undo and redo, and a timeline of every move to jump back to any point. Mistakes can be marked with a limit of 3, 5 or none, or left unmarked, like on paper.
+- **Play your way.** Notes that step aside once a placed number rules them out, undo and redo, and a timeline of every move to jump back to any point. Mistakes can be marked with a limit of 3, 5 or none, or left unmarked, like on paper.
 - **Picks up where you left off.** Leave in the middle of a game and it pauses itself. Come back days later and continue.
 - **Make it yours.** Three themes, every colour, font and size adjustable with a live preview, and the option to highlight all cells with the selected number.
 

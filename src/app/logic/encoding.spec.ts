@@ -137,3 +137,17 @@ describe('solveSudoku', () => {
     expect(solveSudoku(contradiction, alphabet, 3)).toBeNull();
   });
 });
+
+describe('saved games from earlier versions', () => {
+  it('still reads a game saved by an earlier build', () => {
+    const decoded = decodeGame(
+      'ATMIAC7gXAYAHAABGAAEIIDAJB2AABWAwZ1AAmAMBkAAACHYgAZAABwZQAACRBHAwdPoBgE-gGENuBYGAA'
+    );
+
+    expect(decoded?.moves).toEqual([
+      { cell: 3, kind: 'hint', index: 37, value: '5', elapsed: 500 },
+      { cell: 0, kind: 'value', index: 0, value: '9', elapsed: 1000 },
+      { cell: 4, kind: 'value', index: 4, value: '6', elapsed: 2500 }
+    ]);
+  });
+});
