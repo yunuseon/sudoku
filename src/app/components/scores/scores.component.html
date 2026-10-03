@@ -1,0 +1,29 @@
+<div class="choices">
+  @for (each of levels; track each) {
+    <button [class.active]="each === level()" (click)="levelChange.emit(each)">{{ each }}</button>
+  }
+</div>
+
+@if (scores().length === 0) {
+  <p class="empty">No {{ level() }} games solved yet.</p>
+} @else {
+  <ol>
+    @for (score of scores(); track score.id; let i = $index) {
+      <li>
+        <button
+          class="score"
+          [class.highlighted]="score.id === highlightedId()"
+          (click)="selectScore.emit(score.id)"
+        >
+          <span class="rank">{{ i + 1 }}</span>
+          <span class="time">{{ formatElapsed(score.elapsed) }}</span>
+          <span class="detail">{{
+            score.mistakeMode === 'marked' ? '✕ ' + score.mistakes : 'unmarked'
+          }}</span>
+          <span class="detail">{{ formatDate(score.finishedAt) }}</span>
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+        </button>
+      </li>
+    }
+  </ol>
+}

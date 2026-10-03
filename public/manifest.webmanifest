@@ -1,7 +1,7 @@
 {
   "name": "Sudoku",
   "short_name": "Sudoku",
-  "description": "Generated sudoku puzzles by difficulty, with notes, undo and a timeline.",
+  "description": "A free, open source sudoku that works offline. No account, no ads, no tracking.",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",

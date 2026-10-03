@@ -1,0 +1,20 @@
+@let game = config();
+
+@if (isStopped(game.timer)) {
+  @let score = newScore();
+  @if (score && score.rank) {
+    <span class="new-score">#{{ score.rank }} on {{ score.score.level }}</span>
+  }
+  <span class="spacer"></span>
+  <button (click)="action.emit(['startReplay', null])">watch replay</button>
+} @else {
+  <button [disabled]="game.cursor === 0" (click)="action.emit(['undo', null])">↶ undo</button>
+  <button [disabled]="game.cursor === game.moves.length" (click)="action.emit(['redo', null])">
+    redo ↷
+  </button>
+  <span class="spacer"></span>
+  <button [class.active]="game.hintMode" (click)="action.emit(['hintMode', !game.hintMode])">
+    notes
+  </button>
+  <button (click)="action.emit(['set', ''])">delete</button>
+}

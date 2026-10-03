@@ -20,7 +20,6 @@ $lane: 32px;
   height: $ruler;
 }
 
-// not part of the moving track, so it always spans the full width
 .baseline {
   position: absolute;
   top: $ruler - 1px;
@@ -88,6 +87,11 @@ $lane: 32px;
     border-radius: 50%;
     background: none;
     border: 1px solid var(--foreground);
+  }
+
+  &.mistake {
+    color: var(--mistake);
+    box-shadow: inset 0 0 0 1px var(--mistake);
   }
 
   &.undone {

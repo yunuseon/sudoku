@@ -11,11 +11,12 @@
         [style.background]="preset.settings.backgroundColor"
         [style.color]="preset.settings.valueFontColor"
         [style.border-color]="preset.settings.mainBorderColor"
-        (click)="themeChange.emit(preset.settings)">
+        (click)="themeChange.emit(preset.settings)"
+      >
         <span class="dots">
           <span [style.background]="preset.settings.enteredValueFontColor"></span>
           <span [style.background]="preset.settings.highlightFontColor"></span>
-          <span [style.background]="preset.settings.conflictFontColor"></span>
+          <span [style.background]="preset.settings.mistakeFontColor"></span>
         </span>
         {{ preset.name }}
       </button>
@@ -27,7 +28,11 @@
   <section class="group">
     <h3>{{ group.title }}</h3>
     @for (field of group.fields; track field.key) {
-      <hks-theme-field [field]="field" [value]="settings()[field.key]" (valueChange)="changeField(field.key, $event)" />
+      <hks-field
+        [field]="field"
+        [value]="settings()[field.key]"
+        (valueChange)="changeField(field.key, $event)"
+      />
     }
   </section>
 }

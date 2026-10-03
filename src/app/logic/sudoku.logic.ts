@@ -2,7 +2,7 @@ import { type Level, levels, rateDifficulty } from './difficulty';
 
 export type Board = string[];
 
-export type Position = { x: number, y: number };
+export type Position = { x: number; y: number };
 
 type BoardRule = (board: Board, position: number, value: string) => boolean;
 
@@ -22,7 +22,7 @@ const ruleRow: BoardRule = (board, position, value) => {
   }
 
   return true;
-}
+};
 
 const ruleColumn: BoardRule = (board, position, value) => {
   const n = Math.sqrt(board.length);
@@ -40,7 +40,7 @@ const ruleColumn: BoardRule = (board, position, value) => {
   }
 
   return true;
-}
+};
 
 const ruleGrid: BoardRule = (board, position, value) => {
   const n = Math.sqrt(board.length);
@@ -66,88 +66,110 @@ const ruleGrid: BoardRule = (board, position, value) => {
   }
 
   return true;
-}
+};
 
-export const ruleSetSudoku = [
-  ruleRow,
-  ruleColumn,
-  ruleGrid
-];
+export const ruleSetSudoku = [ruleRow, ruleColumn, ruleGrid];
 
-export const checkRules = (ruleSet: BoardRule[]) => (board: Board, position: number, value: string) => ruleSet.every(rule => rule(board, position, value));
+export const checkRules =
+  (ruleSet: BoardRule[]) => (board: Board, position: number, value: string) =>
+    ruleSet.every(rule => rule(board, position, value));
 
-export const createNumericAlphabet = (n: number, m: number) => new Array(n * m).fill('').map((_, i) => String(i + 1));
+export const createNumericAlphabet = (n: number, m: number) =>
+  new Array(n * m).fill('').map((_, i) => String(i + 1));
 
 const isRelatedPosition = (dimension: number, position: Position) => (x: number, y: number) =>
   x === position.x ||
   y === position.y ||
-  (Math.floor(x / dimension) === Math.floor(position.x / dimension) && Math.floor(y / dimension) === Math.floor(position.y / dimension));
+  (Math.floor(x / dimension) === Math.floor(position.x / dimension) &&
+    Math.floor(y / dimension) === Math.floor(position.y / dimension));
 
 export const getHighlightedCells = (dimension: number, selectedPosition: Position) => {
   const n = dimension * dimension;
   const isRelated = isRelatedPosition(dimension, selectedPosition);
 
   return new Array(n * n).fill(false).map((_, i) => isRelated(i % n, Math.floor(i / n)));
-}
+};
 
 export const getRemainingCounts = (board: Board, alphabet: string[]) =>
-  alphabet.map(symbol => Math.max(0, alphabet.length - board.filter(value => value === symbol).length));
-
-export const getConflictingCells = (board: Board) => board.map((value, position) => value !== '' && !checkRules(ruleSetSudoku)(board, position, value));
+  alphabet.map(symbol =>
+    Math.max(0, alphabet.length - board.filter(value => value === symbol).length)
+  );
 
 export const getMatchingCells = (board: Board, selectedPosition: Position) => {
   const n = Math.sqrt(board.length);
   const selectedValue = board[selectedPosition.y * n + selectedPosition.x];
 
   return board.map(value => value !== '' && value === selectedValue);
-}
+};
 
 type Random<T> = (seed: number) => [T, number];
 
-// mulberry32
 const random: Random<number> = seed => {
-  const nextSeed = (seed + 0x6D2B79F5) | 0;
+  const nextSeed = (seed + 0x6d2b79f5) | 0;
   const a = Math.imul(nextSeed ^ (nextSeed >>> 15), 1 | nextSeed);
   const b = (a + Math.imul(a ^ (a >>> 7), 61 | a)) ^ a;
 
   return [((b ^ (b >>> 14)) >>> 0) / 4294967296, nextSeed];
-}
+};
 
-const shuffle = <T>(items: T[]): Random<T[]> => seed => items.reduceRight<[T[], number]>(([shuffled, currentSeed], _, i) => {
-  const [r, nextSeed] = random(currentSeed);
-  const j = Math.floor(r * (i + 1));
+const swap = <T>(items: T[], a: number, b: number): T[] =>
+  items.map((item, k) => {
+    if (k === a) {
+      return items[b];
+    }
 
-  return [shuffled.map((item, k) => k === i ? shuffled[j] : k === j ? shuffled[i] : item), nextSeed];
-}, [items, seed]);
+    return k === b ? items[a] : item;
+  });
 
-const setValue = <T>(items: T[], position: number, value: T): T[] => items.map((current, i) => i === position ? value : current);
+const shuffle =
+  <T>(items: T[]): Random<T[]> =>
+  seed =>
+    items.reduceRight<[T[], number]>(
+      ([shuffled, currentSeed], _, i) => {
+        const [r, nextSeed] = random(currentSeed);
+        const j = Math.floor(r * (i + 1));
+
+        return [swap(shuffled, i, j), nextSeed];
+      },
+      [items, seed]
+    );
+
+const setValue = <T>(items: T[], position: number, value: T): T[] =>
+  items.map((current, i) => (i === position ? value : current));
 
 const range = (length: number) => new Array(length).fill(0).map((_, i) => i);
 
-const shuffleLines = (dimension: number): Random<number[]> => seed => {
-  const [bands, bandSeed] = shuffle(range(dimension))(seed);
+const shuffleLines =
+  (dimension: number): Random<number[]> =>
+  seed => {
+    const [bands, bandSeed] = shuffle(range(dimension))(seed);
 
-  return bands.reduce<[number[], number]>(([lines, currentSeed], band) => {
-    const [linesInBand, nextSeed] = shuffle(range(dimension))(currentSeed);
-    return [[...lines, ...linesInBand.map(line => band * dimension + line)], nextSeed];
-  }, [[], bandSeed]);
-}
+    return bands.reduce<[number[], number]>(
+      ([lines, currentSeed], band) => {
+        const [linesInBand, nextSeed] = shuffle(range(dimension))(currentSeed);
+        return [[...lines, ...linesInBand.map(line => band * dimension + line)], nextSeed];
+      },
+      [[], bandSeed]
+    );
+  };
 
-// see https://en.wikipedia.org/wiki/Mathematics_of_Sudoku
 const patternIndex = (dimension: number) => (row: number, column: number) =>
   (dimension * (row % dimension) + Math.floor(row / dimension) + column) % (dimension * dimension);
 
-const createSolution = (dimension: number, alphabet: string[]): Random<Board> => seed => {
-  const n = dimension * dimension;
-  const [rows, rowSeed] = shuffleLines(dimension)(seed);
-  const [columns, columnSeed] = shuffleLines(dimension)(rowSeed);
-  const [symbols, nextSeed] = shuffle(alphabet)(columnSeed);
+const createSolution =
+  (dimension: number, alphabet: string[]): Random<Board> =>
+  seed => {
+    const n = dimension * dimension;
+    const [rows, rowSeed] = shuffleLines(dimension)(seed);
+    const [columns, columnSeed] = shuffleLines(dimension)(rowSeed);
+    const [symbols, nextSeed] = shuffle(alphabet)(columnSeed);
 
-  const board = range(n * n).map(i => symbols[patternIndex(dimension)(rows[Math.floor(i / n)], columns[i % n])]);
-  return [board, nextSeed];
-}
+    const board = range(n * n).map(
+      i => symbols[patternIndex(dimension)(rows[Math.floor(i / n)], columns[i % n])]
+    );
+    return [board, nextSeed];
+  };
 
-// Symbols are indices into the alphabet, -1 is an empty cell. Each row, column and box keeps a bitmask of its used symbols.
 type Grid = {
   cells: number[];
   rows: number[];
@@ -158,8 +180,10 @@ type Grid = {
 
 const boxOf = (dimension: number, cell: number) => {
   const n = dimension * dimension;
-  return Math.floor(Math.floor(cell / n) / dimension) * dimension + Math.floor((cell % n) / dimension);
-}
+  return (
+    Math.floor(Math.floor(cell / n) / dimension) * dimension + Math.floor((cell % n) / dimension)
+  );
+};
 
 const place = (grid: Grid, cell: number, symbol: number): Grid => {
   const n = grid.dimension * grid.dimension;
@@ -175,34 +199,48 @@ const place = (grid: Grid, cell: number, symbol: number): Grid => {
     columns: setValue(grid.columns, column, grid.columns[column] | bit),
     boxes: setValue(grid.boxes, box, grid.boxes[box] | bit)
   };
-}
+};
 
 const toGrid = (board: Board, alphabet: string[], dimension: number): Grid => {
   const used = new Array(alphabet.length).fill(0);
-  const empty: Grid = { cells: board.map(() => -1), rows: used, columns: used, boxes: used, dimension };
+  const empty: Grid = {
+    cells: board.map(() => -1),
+    rows: used,
+    columns: used,
+    boxes: used,
+    dimension
+  };
 
-  return board.reduce((grid, value, cell) => value === '' ? grid : place(grid, cell, alphabet.indexOf(value)), empty);
-}
+  return board.reduce(
+    (grid, value, cell) => (value === '' ? grid : place(grid, cell, alphabet.indexOf(value))),
+    empty
+  );
+};
 
 const candidatesOf = (grid: Grid, cell: number) => {
   const n = grid.dimension * grid.dimension;
-  const used = grid.rows[Math.floor(cell / n)] | grid.columns[cell % n] | grid.boxes[boxOf(grid.dimension, cell)];
+  const used =
+    grid.rows[Math.floor(cell / n)] |
+    grid.columns[cell % n] |
+    grid.boxes[boxOf(grid.dimension, cell)];
 
   return range(n).filter(symbol => (used & (1 << symbol)) === 0);
-}
+};
 
-const getMostConstrainedCell = (grid: Grid) => grid.cells.reduce<{ cell: number, candidates: number[] } | null>((best, symbol, cell) => {
-  if (symbol !== -1 || best?.candidates.length === 0) {
-    return best;
-  }
+const getMostConstrainedCell = (grid: Grid) =>
+  grid.cells.reduce<{ cell: number; candidates: number[] } | null>((best, symbol, cell) => {
+    if (symbol !== -1 || best?.candidates.length === 0) {
+      return best;
+    }
 
-  const candidates = candidatesOf(grid, cell);
-  return best === null || candidates.length < best.candidates.length ? { cell, candidates } : best;
-}, null);
+    const candidates = candidatesOf(grid, cell);
+    return best === null || candidates.length < best.candidates.length
+      ? { cell, candidates }
+      : best;
+  }, null);
 
-type Search = { count: number, steps: number };
+type Search = { count: number; steps: number };
 
-// A search that runs out of steps counts as having infinitely many solutions, so the value is kept
 const countSolutions = (grid: Grid, limit: number, maxSteps: number): Search => {
   if (maxSteps <= 0) {
     return { count: Infinity, steps: 0 };
@@ -214,36 +252,73 @@ const countSolutions = (grid: Grid, limit: number, maxSteps: number): Search => 
     return { count: 1, steps: 1 };
   }
 
-  return next.candidates.reduce<Search>((search, symbol) => {
-    if (search.count >= limit) {
-      return search;
-    }
+  return next.candidates.reduce<Search>(
+    (search, symbol) => {
+      if (search.count >= limit) {
+        return search;
+      }
 
-    const branch = countSolutions(place(grid, next.cell, symbol), limit - search.count, maxSteps - search.steps);
-    return { count: search.count + branch.count, steps: search.steps + branch.steps };
-  }, { count: 0, steps: 1 });
-}
+      const branch = countSolutions(
+        place(grid, next.cell, symbol),
+        limit - search.count,
+        maxSteps - search.steps
+      );
+      return { count: search.count + branch.count, steps: search.steps + branch.steps };
+    },
+    { count: 0, steps: 1 }
+  );
+};
 
-// Only a safety limit for a single uniqueness check, typical boards stay far below it
+const findSolution = (grid: Grid): Grid | null => {
+  const next = getMostConstrainedCell(grid);
+
+  return next === null
+    ? grid
+    : next.candidates.reduce<Grid | null>(
+        (found, symbol) => found ?? findSolution(place(grid, next.cell, symbol)),
+        null
+      );
+};
+
+export const solveSudoku = (puzzle: Board, alphabet: string[], dimension: number): Board | null => {
+  const solved = findSolution(toGrid(puzzle, alphabet, dimension));
+  const solution = solved?.cells.map(symbol => alphabet[symbol]) ?? null;
+
+  return solution !== null &&
+    isSolved(solution) &&
+    puzzle.every((value, cell) => value === '' || value === solution[cell])
+    ? solution
+    : null;
+};
+
 const maxSearchSteps = 100;
 
-const carvePuzzle = (solution: Board, alphabet: string[], dimension: number, givens: number): Random<Board> => seed => {
-  const [positions, nextSeed] = shuffle(solution.map((_, i) => i))(seed);
+const carvePuzzle =
+  (solution: Board, alphabet: string[], dimension: number, givens: number): Random<Board> =>
+  seed => {
+    const [positions, nextSeed] = shuffle(solution.map((_, i) => i))(seed);
 
-  const puzzle = positions.reduce((board, position) => {
-    const remainingValues = board.filter(value => value !== '').length;
-    if (remainingValues <= givens) {
-      return board;
-    }
+    const puzzle = positions.reduce((board, position) => {
+      const remainingValues = board.filter(value => value !== '').length;
+      if (remainingValues <= givens) {
+        return board;
+      }
 
-    const candidate = setValue(board, position, '');
-    return countSolutions(toGrid(candidate, alphabet, dimension), 2, maxSearchSteps).count === 1 ? candidate : board;
-  }, solution);
+      const candidate = setValue(board, position, '');
+      return countSolutions(toGrid(candidate, alphabet, dimension), 2, maxSearchSteps).count === 1
+        ? candidate
+        : board;
+    }, solution);
 
-  return [puzzle, nextSeed];
-}
+    return [puzzle, nextSeed];
+  };
 
-export const createSudoku = (config: { dimension: number, alphabet: string[], givensRatio: number, seed: number }) => {
+export const createSudoku = (config: {
+  dimension: number;
+  alphabet: string[];
+  givensRatio: number;
+  seed: number;
+}) => {
   const n = config.dimension * config.dimension;
 
   if (config.alphabet.length !== n) {
@@ -251,42 +326,70 @@ export const createSudoku = (config: { dimension: number, alphabet: string[], gi
   }
 
   const [solution, nextSeed] = createSolution(config.dimension, config.alphabet)(config.seed);
-  const [puzzle] = carvePuzzle(solution, config.alphabet, config.dimension, Math.round(config.givensRatio * n * n))(nextSeed);
+  const [puzzle] = carvePuzzle(
+    solution,
+    config.alphabet,
+    config.dimension,
+    Math.round(config.givensRatio * n * n)
+  )(nextSeed);
 
   return { solution, puzzle };
-}
+};
 
-// The share of givens to aim for, the rating decides whether a generated puzzle has the level
 const levelGivensRatios: Record<Level, number> = { easy: 0.45, medium: 0.36, hard: 0, expert: 0 };
-// Larger boards can't be carved below easy yet, retrying would only cost time
-const maxLevelAttempts = (dimension: number) => dimension <= 3 ? 100 : 1;
+const maxLevelAttempts = (dimension: number) => (dimension <= 3 ? 100 : 1);
 
 const levelDistance = (a: Level, b: Level) => Math.abs(levels.indexOf(a) - levels.indexOf(b));
 
-// Tries seed, seed + 1, ... so the result stays deterministic, and falls back to the closest level found
-export const createSudokuForLevel = (config: { dimension: number, alphabet: string[], level: Level, seed: number }) => {
-  const attempt = (k: number) => {
-    const generated = createSudoku({ dimension: config.dimension, alphabet: config.alphabet, givensRatio: levelGivensRatios[config.level], seed: config.seed + k });
-    return { ...generated, level: rateDifficulty(generated.puzzle, config.alphabet, config.dimension) };
+export type Sudoku = { puzzle: Board; solution: Board; level: Level };
+
+export const createSudokuForLevel = (config: {
+  dimension: number;
+  alphabet: string[];
+  level: Level;
+  seed: number;
+}): Sudoku => {
+  const attempt = (k: number): Sudoku => {
+    const generated = createSudoku({
+      dimension: config.dimension,
+      alphabet: config.alphabet,
+      givensRatio: levelGivensRatios[config.level],
+      seed: config.seed + k
+    });
+    return {
+      ...generated,
+      level: rateDifficulty(generated.puzzle, config.alphabet, config.dimension)
+    };
   };
 
-  const search = (k: number, best: ReturnType<typeof attempt>): ReturnType<typeof attempt> => {
+  const search = (k: number, best: Sudoku): Sudoku => {
     if (best.level === config.level || k === maxLevelAttempts(config.dimension)) {
       return best;
     }
 
     const next = attempt(k);
-    return search(k + 1, levelDistance(next.level, config.level) < levelDistance(best.level, config.level) ? next : best);
+    return search(
+      k + 1,
+      levelDistance(next.level, config.level) < levelDistance(best.level, config.level)
+        ? next
+        : best
+    );
   };
 
   return search(1, attempt(0));
-}
+};
+
+export const mistakeModes = ['marked', 'unmarked'] as const;
+
+export type MistakeMode = (typeof mistakeModes)[number];
 
 export type GameSettings = {
   xDimension: number;
   yDimension: number;
   level: Level;
   seed: number;
+  mistakeMode: MistakeMode;
+  mistakeLimit: number | null;
 };
 
 export type Timer = {
@@ -302,13 +405,14 @@ export const isStopped = (timer: Timer) => timer.stoppedAt !== null;
 
 export const isRunning = (timer: Timer) => !isPaused(timer) && !isStopped(timer);
 
-export const elapsed = (timer: Timer, time: number) => (timer.stoppedAt ?? timer.pausedAt ?? time) - timer.startedAt - timer.pausedTotal;
+export const elapsed = (timer: Timer, time: number) =>
+  (timer.stoppedAt ?? timer.pausedAt ?? time) - timer.startedAt - timer.pausedTotal;
 
-const togglePause = (timer: Timer, time: number): Timer => timer.pausedAt === null
-  ? { ...timer, pausedAt: time }
-  : { ...timer, pausedAt: null, pausedTotal: timer.pausedTotal + time - timer.pausedAt };
+const togglePause = (timer: Timer, time: number): Timer =>
+  timer.pausedAt === null
+    ? { ...timer, pausedAt: time }
+    : { ...timer, pausedAt: null, pausedTotal: timer.pausedTotal + time - timer.pausedAt };
 
-// Stores the value after the move instead of the pressed key, so replaying moves is a plain set and never a toggle
 export type Move = {
   cell: number;
   kind: 'value' | 'hint';
@@ -317,11 +421,19 @@ export type Move = {
   elapsed: number;
 };
 
+export type Mistake = {
+  cell: number;
+  value: string;
+  elapsed: number;
+};
+
 export type Game = {
   settings: GameSettings;
   level: Level;
   puzzle: Board;
+  solution: Board;
   moves: Move[];
+  mistakes: Mistake[];
   cursor: number;
   boardValues: Board;
   givens: boolean[];
@@ -344,29 +456,47 @@ export type MoveAction = ['move', MoveDirection];
 
 export type SelectAction = ['select', Position];
 export type HintModeAction = ['hintMode', boolean];
-export type ConfigureGameAction = ['configureGame', Partial<GameSettings>];
 export type TogglePauseAction = ['togglePause', null];
+export type PauseAction = ['pause', null];
 export type UndoAction = ['undo', null];
 export type RedoAction = ['redo', null];
 export type SeekAction = ['seek', number];
 
-export type GameAction = SetAction | MoveAction | SelectAction | HintModeAction | ConfigureGameAction | TogglePauseAction | UndoAction | RedoAction | SeekAction;
+export type GameAction =
+  | SetAction
+  | MoveAction
+  | SelectAction
+  | HintModeAction
+  | TogglePauseAction
+  | PauseAction
+  | UndoAction
+  | RedoAction
+  | SeekAction;
 
-export const createGame = (settings: GameSettings, time: number): Game => {
+export const startGame = (
+  settings: GameSettings,
+  { puzzle, solution, level }: Sudoku,
+  time: number
+): Game => {
   const alphabet = createNumericAlphabet(settings.xDimension, settings.yDimension);
-  const { puzzle, level } = createSudokuForLevel({ dimension: settings.xDimension, alphabet, level: settings.level, seed: settings.seed });
 
   return {
     settings,
     level,
     puzzle,
+    solution,
     moves: [],
+    mistakes: [],
     cursor: 0,
     boardValues: puzzle,
     givens: puzzle.map(value => value !== ''),
     boardHints: new Array(
-      settings.xDimension * settings.xDimension * settings.xDimension *
-      settings.yDimension * settings.yDimension * settings.yDimension
+      settings.xDimension *
+        settings.xDimension *
+        settings.xDimension *
+        settings.yDimension *
+        settings.yDimension *
+        settings.yDimension
     ).fill(''),
     selectedPosition: {
       x: 0,
@@ -376,13 +506,26 @@ export const createGame = (settings: GameSettings, time: number): Game => {
     alphabet,
     timer: { startedAt: time, pausedAt: null, pausedTotal: 0, stoppedAt: null }
   };
-}
+};
 
-// the solver keeps used symbols as bitmasks, a 6x6 box would need 36 bits
+export const generateSudoku = (settings: GameSettings): Sudoku =>
+  createSudokuForLevel({
+    dimension: settings.xDimension,
+    alphabet: createNumericAlphabet(settings.xDimension, settings.yDimension),
+    level: settings.level,
+    seed: settings.seed
+  });
+
+export const createGame = (settings: GameSettings, time: number): Game =>
+  startGame(settings, generateSudoku(settings), time);
+
 const maxDimension = 5;
 
 export const isPlayable = (settings: GameSettings) =>
-  Number.isInteger(settings.xDimension) && settings.xDimension >= 1 && settings.xDimension <= maxDimension && settings.xDimension === settings.yDimension;
+  Number.isInteger(settings.xDimension) &&
+  settings.xDimension >= 1 &&
+  settings.xDimension <= maxDimension &&
+  settings.xDimension === settings.yDimension;
 
 export const createGameState = (settings: GameSettings, time: number): GameState => ({
   settings,
@@ -399,36 +542,55 @@ const moveFor = (game: Game, value: string, elapsedTime: number): Move | null =>
   }
 
   if (game.hintMode) {
-
-    // If the selected position has a value on it, do not add hints to it, because the player won't be able to see them
     if (selectedValue !== '') {
       return null;
     }
 
-    const setCharacterIndex = game.alphabet.findIndex(character => character === value);
-    if (setCharacterIndex === -1) {
+    const symbol = game.alphabet.findIndex(character => character === value);
+    if (symbol === -1) {
       return null;
     }
 
-    const index = game.selectedPosition.y * (xDimension * xDimension * xDimension * xDimension) + (game.selectedPosition.x * xDimension) + Math.floor(setCharacterIndex / xDimension) * (xDimension * xDimension * xDimension) + setCharacterIndex % xDimension;
+    const index = hintIndex(xDimension, cell, symbol);
 
-    return { cell, kind: 'hint', index, value: game.boardHints[index] === value ? '' : value, elapsed: elapsedTime };
+    return {
+      cell,
+      kind: 'hint',
+      index,
+      value: game.boardHints[index] === value ? '' : value,
+      elapsed: elapsedTime
+    };
   }
 
   const newValue = selectedValue === value ? '' : value;
-  return newValue === selectedValue ? null : { cell, kind: 'value', index: cell, value: newValue, elapsed: elapsedTime };
-}
+  return newValue === selectedValue
+    ? null
+    : { cell, kind: 'value', index: cell, value: newValue, elapsed: elapsedTime };
+};
 
-const applyMove = (game: Game, move: Move): Game => move.kind === 'value'
-  ? { ...game, boardValues: setValue(game.boardValues, move.index, move.value) }
-  : { ...game, boardHints: setValue(game.boardHints, move.index, move.value) };
+const applyMove = (game: Game, move: Move): Game =>
+  move.kind === 'value'
+    ? { ...game, boardValues: setValue(game.boardValues, move.index, move.value) }
+    : { ...game, boardHints: setValue(game.boardHints, move.index, move.value) };
 
 const positionOf = (cell: number, xDimension: number): Position => ({
   x: cell % (xDimension * xDimension),
   y: Math.floor(cell / (xDimension * xDimension))
 });
 
-const seekTo = (game: Game, cursor: number): Game => {
+export const hintIndex = (xDimension: number, cell: number, symbol: number) => {
+  const n = xDimension * xDimension;
+  const { x, y } = positionOf(cell, xDimension);
+
+  return (
+    y * n * n +
+    x * xDimension +
+    Math.floor(symbol / xDimension) * n * xDimension +
+    (symbol % xDimension)
+  );
+};
+
+export const seekTo = (game: Game, cursor: number): Game => {
   const replayed = game.moves.slice(0, cursor).reduce(applyMove, {
     ...game,
     cursor,
@@ -436,12 +598,21 @@ const seekTo = (game: Game, cursor: number): Game => {
     boardHints: game.boardHints.map(() => '')
   });
 
-  return cursor === 0 ? replayed : { ...replayed, selectedPosition: positionOf(game.moves[cursor - 1].cell, game.settings.xDimension) };
-}
+  return cursor === 0
+    ? replayed
+    : {
+        ...replayed,
+        selectedPosition: positionOf(game.moves[cursor - 1].cell, game.settings.xDimension)
+      };
+};
 
 const clamp = (min: number, max: number) => (value: number) => Math.min(max, Math.max(min, value));
 
-const moveSelection = (position: Position, direction: MoveDirection, xDimension: number): Position => {
+const moveSelection = (
+  position: Position,
+  direction: MoveDirection,
+  xDimension: number
+): Position => {
   const clampToBoard = clamp(0, xDimension * xDimension - 1);
 
   switch (direction) {
@@ -454,19 +625,48 @@ const moveSelection = (position: Position, direction: MoveDirection, xDimension:
     case 'down':
       return { ...position, y: clampToBoard(position.y + 1) };
   }
-}
+};
 
-export const isSolved = (board: Board) => board.every((value, position) => value !== '' && checkRules(ruleSetSudoku)(board, position, value));
+export const isSolved = (board: Board) =>
+  board.every(
+    (value, position) => value !== '' && checkRules(ruleSetSudoku)(board, position, value)
+  );
 
 const pausedActions: GameAction[0][] = ['set', 'move', 'select', 'undo', 'redo', 'seek'];
-const solvedActions: GameAction[0][] = ['set', 'togglePause', 'undo', 'redo', 'seek'];
+const solvedActions: GameAction[0][] = ['set', 'togglePause', 'pause', 'undo', 'redo', 'seek'];
 
-const stopWhenSolved = (game: Game, time: number): Game => isSolved(game.boardValues) ? { ...game, timer: { ...game.timer, stoppedAt: time } } : game;
+export const isLost = (game: Game) =>
+  game.settings.mistakeMode === 'marked' &&
+  game.settings.mistakeLimit !== null &&
+  game.mistakes.length >= game.settings.mistakeLimit;
+
+export const getWrongCells = (game: Game) =>
+  game.boardValues.map(
+    (value, cell) =>
+      game.settings.mistakeMode === 'marked' &&
+      value !== '' &&
+      !game.givens[cell] &&
+      value !== game.solution[cell]
+  );
+
+const isMistake = (game: Game, move: Move) =>
+  game.settings.mistakeMode === 'marked' &&
+  move.kind === 'value' &&
+  move.value !== '' &&
+  move.value !== game.solution[move.cell];
+
+const stopWhenFinished = (game: Game, time: number): Game =>
+  isSolved(game.boardValues) || isLost(game)
+    ? { ...game, timer: { ...game.timer, stoppedAt: time } }
+    : game;
 
 export const gameReducer = (state: GameState, action: GameAction, time: number): GameState => {
   const [type, value] = action;
 
-  if (isPaused(state.game.timer) && pausedActions.includes(type) || isStopped(state.game.timer) && solvedActions.includes(type)) {
+  if (
+    (isPaused(state.game.timer) && pausedActions.includes(type)) ||
+    (isStopped(state.game.timer) && solvedActions.includes(type))
+  ) {
     return state;
   }
 
@@ -479,28 +679,51 @@ export const gameReducer = (state: GameState, action: GameAction, time: number):
         return state;
       }
 
-      const recorded = { ...game, moves: [...game.moves.slice(0, game.cursor), move], cursor: game.cursor + 1 };
-      return { ...state, game: stopWhenSolved(applyMove(recorded, move), time) };
+      const recorded = {
+        ...game,
+        moves: [...game.moves.slice(0, game.cursor), move],
+        cursor: game.cursor + 1,
+        mistakes: isMistake(game, move)
+          ? [...game.mistakes, { cell: move.cell, value: move.value, elapsed: move.elapsed }]
+          : game.mistakes
+      };
+      return { ...state, game: stopWhenFinished(applyMove(recorded, move), time) };
     }
     case 'undo':
-      return state.game.cursor === 0 ? state : { ...state, game: seekTo(state.game, state.game.cursor - 1) };
+      return state.game.cursor === 0
+        ? state
+        : { ...state, game: seekTo(state.game, state.game.cursor - 1) };
     case 'redo':
-      return state.game.cursor === state.game.moves.length ? state : { ...state, game: stopWhenSolved(seekTo(state.game, state.game.cursor + 1), time) };
+      return state.game.cursor === state.game.moves.length
+        ? state
+        : { ...state, game: stopWhenFinished(seekTo(state.game, state.game.cursor + 1), time) };
     case 'seek': {
       const cursor = Math.max(0, Math.min(state.game.moves.length, value));
-      return cursor === state.game.cursor ? state : { ...state, game: stopWhenSolved(seekTo(state.game, cursor), time) };
+      return cursor === state.game.cursor
+        ? state
+        : { ...state, game: stopWhenFinished(seekTo(state.game, cursor), time) };
     }
     case 'move':
-      return { ...state, game: { ...state.game, selectedPosition: moveSelection(state.game.selectedPosition, value, state.game.settings.xDimension) } };
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          selectedPosition: moveSelection(
+            state.game.selectedPosition,
+            value,
+            state.game.settings.xDimension
+          )
+        }
+      };
     case 'select':
       return { ...state, game: { ...state.game, selectedPosition: value } };
     case 'hintMode':
       return { ...state, game: { ...state.game, hintMode: value } };
     case 'togglePause':
       return { ...state, game: { ...state.game, timer: togglePause(state.game.timer, time) } };
-    case 'configureGame': {
-      const settings = { ...state.settings, ...value };
-      return { settings, game: isPlayable(settings) ? createGame(settings, time) : state.game };
-    }
+    case 'pause':
+      return isPaused(state.game.timer)
+        ? state
+        : { ...state, game: { ...state.game, timer: togglePause(state.game.timer, time) } };
   }
-}
+};

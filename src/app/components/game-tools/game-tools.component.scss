@@ -1,0 +1,22 @@
+@use '../controls';
+
+:host {
+  display: flex;
+  gap: 6px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.new-score {
+  align-self: center;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+button {
+  @include controls.button;
+  min-height: 36px;
+  font-size: 0.9rem;
+}

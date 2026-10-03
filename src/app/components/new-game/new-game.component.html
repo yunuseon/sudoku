@@ -1,0 +1,42 @@
+@if (options(); as chosen) {
+  <h3>Difficulty</h3>
+  <div class="choices">
+    @for (level of levels; track level) {
+      <button [class.active]="level === chosen.level" (click)="optionsChange.emit({ level })">
+        {{ level }}
+      </button>
+    }
+  </div>
+
+  <h3>Mistakes</h3>
+  <div class="choices">
+    <button
+      [class.active]="chosen.mistakeMode === 'marked'"
+      (click)="optionsChange.emit({ mistakeMode: 'marked' })"
+    >
+      marked
+    </button>
+    <button
+      [class.active]="chosen.mistakeMode === 'unmarked'"
+      (click)="optionsChange.emit({ mistakeMode: 'unmarked' })"
+    >
+      unmarked
+    </button>
+  </div>
+
+  @if (chosen.mistakeMode === 'marked') {
+    <h3>Limit</h3>
+    <div class="choices">
+      @for (limit of mistakeLimits(); track limit) {
+        <button
+          [class.active]="limit === chosen.mistakeLimit"
+          (click)="optionsChange.emit({ mistakeLimit: limit })"
+        >
+          {{ limit ?? '∞' }}
+        </button>
+      }
+    </div>
+  }
+
+  <button class="start" (click)="startGame()">start</button>
+}

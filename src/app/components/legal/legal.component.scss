@@ -1,0 +1,30 @@
+:host {
+  display: block;
+  line-height: 1.55;
+}
+
+section + section {
+  margin-top: 28px;
+}
+
+h3 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+
+h4 {
+  margin: 16px 0 4px;
+  font-size: 0.95rem;
+}
+
+p {
+  color: color-mix(in srgb, var(--foreground) 80%, transparent);
+}
+
+p + p {
+  margin-top: 8px;
+}
+
+a {
+  color: var(--accent);
+}

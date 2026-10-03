@@ -12,16 +12,26 @@
   </div>
 
   <div class="lane">
-    <button class="move start" [class.current]="cursor() === 0" [style.left.px]="x(0)" (click)="seek.emit(0)"></button>
+    <button
+      class="move start"
+      aria-label="start"
+      [class.current]="cursor() === 0"
+      [style.left.px]="x(0)"
+      (click)="seek.emit(0)"
+    ></button>
 
     @for (move of moves(); track $index; let i = $index) {
       <button
         class="move"
         [class.hint]="move.kind === 'hint'"
+        [class.mistake]="isMistake(move)"
         [class.undone]="i >= cursor()"
         [class.current]="i === cursor() - 1"
         [style.left.px]="x(move.elapsed)"
-        (click)="seek.emit(i + 1)">{{ move.value || '×' }}</button>
+        (click)="seek.emit(i + 1)"
+      >
+        {{ move.value || '×' }}
+      </button>
     }
   </div>
 </div>

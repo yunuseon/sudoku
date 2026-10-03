@@ -1,10 +1,12 @@
+@use '../controls';
+
 :host {
   display: block;
 }
 
 .preview {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   z-index: 1;
   display: grid;
   place-items: center;
@@ -13,23 +15,7 @@
 }
 
 .group {
-  margin-top: 16px;
-  padding: 4px 16px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--foreground) 6%, transparent);
-
-  h3 {
-    margin: 10px 0 2px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    opacity: 0.6;
-  }
-
-  hks-theme-field + hks-theme-field {
-    border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
-  }
+  @include controls.group;
 }
 
 .presets {

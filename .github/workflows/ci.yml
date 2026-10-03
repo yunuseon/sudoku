@@ -1,12 +1,29 @@
-name: image
+name: ci
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm test -- --watch=false
+
   image:
+    needs: check
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,7 +41,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
             type=sha
       - uses: docker/build-push-action@v6
         with:

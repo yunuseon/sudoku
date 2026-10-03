@@ -1,0 +1,29 @@
+@use '../controls';
+
+:host {
+  display: flex;
+  gap: 6px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+button {
+  @include controls.button;
+  min-width: 56px;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+}
+
+svg {
+  @include controls.icon;
+  fill: currentColor;
+  stroke: none;
+}
+
+.speed-picker {
+  @include controls.popup;
+}

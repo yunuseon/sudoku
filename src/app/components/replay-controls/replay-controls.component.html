@@ -1,0 +1,40 @@
+@let frame = config();
+@let running = isRunningAtCursor(replay(), frame.cursor);
+
+<button
+  aria-label="previous move"
+  [disabled]="frame.cursor === 0"
+  (click)="action.emit(['replay', ['step', -1]])"
+>
+  <svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z" /></svg>
+</button>
+<button
+  [attr.aria-label]="running ? 'pause' : 'play'"
+  (click)="action.emit(['replay', ['toggle', null]])"
+>
+  @if (running) {
+    <svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+  } @else {
+    <svg viewBox="0 0 24 24"><path d="M7 5v14l12-7z" /></svg>
+  }
+</button>
+<button
+  aria-label="next move"
+  [disabled]="frame.cursor === frame.moves.length"
+  (click)="action.emit(['replay', ['step', 1]])"
+>
+  <svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z" /></svg>
+</button>
+<span class="spacer"></span>
+<button class="speed" (click)="speedPicker.showPopover()">{{ replay().playback.speed }}×</button>
+
+<div class="speed-picker" popover #speedPicker>
+  @for (speed of speeds(); track speed) {
+    <button
+      [class.active]="speed === replay().playback.speed"
+      (click)="action.emit(['replay', ['speed', speed]]); speedPicker.hidePopover()"
+    >
+      {{ speed }}×
+    </button>
+  }
+</div>

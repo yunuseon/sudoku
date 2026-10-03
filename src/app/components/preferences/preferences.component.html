@@ -1,0 +1,10 @@
+<section class="group">
+  <h3>Game</h3>
+  @for (field of fields; track field.key) {
+    <hks-field
+      [field]="field"
+      [value]="preferences()[field.key]"
+      (valueChange)="changeField(field.key, $event)"
+    />
+  }
+</section>

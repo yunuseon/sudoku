@@ -1,0 +1,59 @@
+@let game = config();
+@let current = replay();
+
+<span class="status">
+  <span class="time">
+    {{ formatElapsed(elapsed()) }}
+    @if (game.settings.mistakeMode === 'marked') {
+      <span
+        class="mistakes"
+        [class.warning]="game.mistakes.length > 0"
+        [attr.aria-label]="game.mistakes.length + ' mistakes'"
+        >✕ {{ game.mistakes.length
+        }}{{ game.settings.mistakeLimit === null ? '' : '/' + game.settings.mistakeLimit }}</span
+      >
+    }
+  </span>
+  <span class="meta">
+    @if (current) {
+      / {{ formatElapsed(duration(current.game)) }} · replay
+    } @else {
+      {{ game.level }}
+    }
+  </span>
+</span>
+
+<div class="actions">
+  @if (current) {
+    <button (click)="action.emit(['exitReplay', null])">exit replay</button>
+  } @else {
+    @if (!isStopped(game.timer)) {
+      <button
+        class="icon"
+        [attr.aria-label]="isPaused(game.timer) ? 'resume' : 'pause'"
+        (click)="action.emit(['togglePause', null])"
+      >
+        @if (isPaused(game.timer)) {
+          <svg viewBox="0 0 24 24"><path class="solid" d="M7 5v14l12-7z" /></svg>
+        } @else {
+          <svg viewBox="0 0 24 24"><path class="solid" d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+        }
+      </button>
+    }
+    <button class="icon" aria-label="settings" (click)="openSettings.emit()">
+      <svg viewBox="0 0 24 24">
+        <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+        <circle cx="15" cy="7" r="2" />
+        <circle cx="9" cy="17" r="2" />
+      </svg>
+    </button>
+    <button class="icon" aria-label="scores" (click)="openScores.emit()">
+      <svg viewBox="0 0 24 24">
+        <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8" />
+      </svg>
+    </button>
+    <button class="icon" aria-label="new game" (click)="openNewGame.emit()">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+    </button>
+  }
+</div>

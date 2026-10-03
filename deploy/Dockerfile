@@ -7,5 +7,6 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:alpine
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist/sudoku/browser /usr/share/nginx/html
 EXPOSE 8080

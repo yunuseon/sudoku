@@ -1,49 +1,49 @@
-import { createGameState, createSudokuForLevel, GameAction, gameReducer, GameState } from '../logic/sudoku.logic';
+import type { Field } from '../components/field/field';
+import type { Json } from '../core/storage/local-storage';
+import { pickValid } from '../core/validation';
+import {
+  createGameState,
+  GameAction,
+  gameReducer,
+  GameSettings,
+  GameState
+} from '../logic/sudoku.logic';
 
 export const boardSettings = {
-  "height": 1000,
-  "width": 1000,
-  "clientWidth": 600,
-  "clientHeight": 600,
-  "pixelRatio": 1,
-  "backgroundColor": "#213555",
-  "cellPaddingRatio": 0.33,
-  "mainBorderColor": "#d8c4b6",
-  "mainGridBorderWidth": 12,
-  "valueFont": "system-ui",
-  "valueFontColor": "#f5efe7",
-  "enteredValueFontColor": "#8ec5ff",
-  "valueGridBorderColor": "#3e5879",
-  "valueGridBorderWidth": 4,
-  "hintFont": "system-ui",
-  "hintFontColor": "#d8c4b6",
-  "hintGridBorderColor": "#eac0c0",
-  "hintGridBorderWidth": 0,
-  "renderTextBoundingBoxLineWidth": 0,
-  "renderTextBoundingBoxColor": "#00ff00",
-  "highlightColor": '#18263c',
-  "selectedCellHighlightColor": '#030509',
-  "highlightFontColor": '#f2c46d',
-  "enteredHighlightFontColor": '#ffdc9a',
-  "showConflicts": true,
-  "conflictFontColor": '#ff5c5c',
-  "solvedOverlayColor": '#213555d9',
-  "solvedFontColor": '#f5efe7',
-  "timelinePixelsPerSecond": 12,
-  "timelinePlayheadColor": '#3b82f6',
-}
+  height: 1000,
+  width: 1000,
+  clientWidth: 600,
+  clientHeight: 600,
+  pixelRatio: 1,
+  backgroundColor: '#213555',
+  cellPaddingRatio: 0.33,
+  mainBorderColor: '#d8c4b6',
+  mainGridBorderWidth: 12,
+  valueFont: 'system-ui',
+  valueFontColor: '#f5efe7',
+  enteredValueFontColor: '#8ec5ff',
+  valueGridBorderColor: '#3e5879',
+  valueGridBorderWidth: 4,
+  hintFont: 'system-ui',
+  hintFontColor: '#d8c4b6',
+  hintGridBorderColor: '#eac0c0',
+  hintGridBorderWidth: 0,
+  renderTextBoundingBoxLineWidth: 0,
+  renderTextBoundingBoxColor: '#00ff00',
+  highlightColor: '#18263c',
+  selectedCellHighlightColor: '#030509',
+  highlightFontColor: '#f2c46d',
+  enteredHighlightFontColor: '#ffdc9a',
+  mistakeFontColor: '#ff5c5c',
+  overlayColor: '#213555d9',
+  overlayFontColor: '#f5efe7',
+  timelinePixelsPerSecond: 12,
+  timelinePlayheadColor: '#3b82f6'
+};
 
 export type BoardSettings = typeof boardSettings;
 
-export type ThemeField = {
-  key: keyof BoardSettings;
-  label: string;
-  type: 'color' | 'range' | 'toggle' | 'choice';
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: { label: string; value: string }[];
-};
+export type ThemeField = Field<keyof BoardSettings>;
 
 export type ThemeGroup = { title: string; fields: ThemeField[] };
 
@@ -60,10 +60,31 @@ export const themeGroups: ThemeGroup[] = [
     fields: [
       { key: 'backgroundColor', label: 'Background', type: 'color' },
       { key: 'mainBorderColor', label: 'Box borders', type: 'color' },
-      { key: 'mainGridBorderWidth', label: 'Box border width', type: 'range', min: 0, max: 30, step: 1 },
+      {
+        key: 'mainGridBorderWidth',
+        label: 'Box border width',
+        type: 'range',
+        min: 0,
+        max: 30,
+        step: 1
+      },
       { key: 'valueGridBorderColor', label: 'Cell borders', type: 'color' },
-      { key: 'valueGridBorderWidth', label: 'Cell border width', type: 'range', min: 0, max: 20, step: 1 },
-      { key: 'cellPaddingRatio', label: 'Number padding', type: 'range', min: 0, max: 0.45, step: 0.01 }
+      {
+        key: 'valueGridBorderWidth',
+        label: 'Cell border width',
+        type: 'range',
+        min: 0,
+        max: 20,
+        step: 1
+      },
+      {
+        key: 'cellPaddingRatio',
+        label: 'Number padding',
+        type: 'range',
+        min: 0,
+        max: 0.45,
+        step: 0.01
+      }
     ]
   },
   {
@@ -80,7 +101,14 @@ export const themeGroups: ThemeGroup[] = [
       { key: 'hintFont', label: 'Font', type: 'choice', options: fonts },
       { key: 'hintFontColor', label: 'Notes', type: 'color' },
       { key: 'hintGridBorderColor', label: 'Note grid', type: 'color' },
-      { key: 'hintGridBorderWidth', label: 'Note grid width', type: 'range', min: 0, max: 10, step: 1 }
+      {
+        key: 'hintGridBorderWidth',
+        label: 'Note grid width',
+        type: 'range',
+        min: 0,
+        max: 10,
+        step: 1
+      }
     ]
   },
   {
@@ -95,10 +123,9 @@ export const themeGroups: ThemeGroup[] = [
   {
     title: 'Game',
     fields: [
-      { key: 'showConflicts', label: 'Show conflicts', type: 'toggle' },
-      { key: 'conflictFontColor', label: 'Conflicts', type: 'color' },
-      { key: 'solvedOverlayColor', label: 'Solved overlay', type: 'color' },
-      { key: 'solvedFontColor', label: 'Solved text', type: 'color' }
+      { key: 'mistakeFontColor', label: 'Mistakes', type: 'color' },
+      { key: 'overlayColor', label: 'Overlay', type: 'color' },
+      { key: 'overlayFontColor', label: 'Overlay text', type: 'color' }
     ]
   },
   {
@@ -112,7 +139,18 @@ export const themeGroups: ThemeGroup[] = [
 
 const themeKeys = themeGroups.flatMap(group => group.fields.map(field => field.key));
 
-const navy = Object.fromEntries(themeKeys.map(key => [key, boardSettings[key]])) as Partial<BoardSettings>;
+export const pickTheme = (settings: BoardSettings) =>
+  themeKeys.reduce<Partial<BoardSettings>>(
+    (theme, key) => ({ ...theme, [key]: settings[key] }),
+    {}
+  );
+
+export const isSameTheme = (a: BoardSettings, b: BoardSettings) =>
+  themeKeys.every(key => a[key] === b[key]);
+
+export const parseTheme = (value: Json) => pickValid(boardSettings, themeKeys, value);
+
+const navy = pickTheme(boardSettings);
 
 export const themePresets: { name: string; settings: Partial<BoardSettings> }[] = [
   { name: 'Navy', settings: navy },
@@ -131,9 +169,9 @@ export const themePresets: { name: string; settings: Partial<BoardSettings> }[] 
       selectedCellHighlightColor: '#dccfb4',
       highlightFontColor: '#b8326b',
       enteredHighlightFontColor: '#d0559a',
-      conflictFontColor: '#d23c3c',
-      solvedOverlayColor: '#f6f1e7d9',
-      solvedFontColor: '#1f1d1a',
+      mistakeFontColor: '#d23c3c',
+      overlayColor: '#f6f1e7d9',
+      overlayFontColor: '#1f1d1a',
       timelinePlayheadColor: '#2f5fb3'
     }
   },
@@ -152,36 +190,50 @@ export const themePresets: { name: string; settings: Partial<BoardSettings> }[] 
       selectedCellHighlightColor: '#2a3242',
       highlightFontColor: '#ffb454',
       enteredHighlightFontColor: '#ffd08a',
-      conflictFontColor: '#ff6b6b',
-      solvedOverlayColor: '#0d0f14d9',
-      solvedFontColor: '#e6e8ee',
+      mistakeFontColor: '#ff6b6b',
+      overlayColor: '#0d0f14d9',
+      overlayFontColor: '#e6e8ee',
       timelinePlayheadColor: '#7cc4ff'
     }
   }
 ];
 
-const sampleSettings = { xDimension: 3, yDimension: 3, level: 'easy' as const, seed: 2024 };
+const sampleSettings: GameSettings = {
+  xDimension: 3,
+  yDimension: 3,
+  level: 'easy',
+  seed: 2024,
+  mistakeMode: 'marked',
+  mistakeLimit: null
+};
 
-// A fixed game with entered numbers, a conflict, notes and a selection, so the preview shows every themed state
 export const createSampleState = (): GameState => {
   const start = createGameState(sampleSettings, 0);
-  const { solution } = createSudokuForLevel({ dimension: 3, alphabet: start.game.alphabet, level: sampleSettings.level, seed: sampleSettings.seed });
+  const solution = start.game.solution;
   const at = (cell: number) => ({ x: cell % 9, y: Math.floor(cell / 9) });
   const row = (cell: number) => Math.floor(cell / 9);
 
-  const empty = start.game.givens.flatMap((isGiven, cell) => isGiven ? [] : [cell]);
+  const empty = start.game.givens.flatMap((isGiven, cell) => (isGiven ? [] : [cell]));
   const [first, second, ...rest] = empty;
-  const conflict = rest.find(cell => start.game.boardValues.some((value, other) => value !== '' && row(other) === row(cell)))!;
-  const conflictValue = start.game.boardValues.find((value, other) => value !== '' && row(other) === row(conflict))!;
-  const note = rest.find(cell => cell !== conflict && row(cell) !== row(first))!;
+  const [mistake] = rest;
+  const wrongValue = start.game.alphabet.find(value => value !== solution[mistake])!;
+  const note = rest.find(cell => cell !== mistake && row(cell) !== row(first))!;
 
   const actions: GameAction[] = [
-    ['select', at(first)], ['set', solution[first]],
-    ['select', at(second)], ['set', solution[second]],
-    ['select', at(conflict)], ['set', conflictValue],
-    ['hintMode', true], ['select', at(note)], ['set', '1'], ['set', '4'], ['set', '7'], ['hintMode', false],
+    ['select', at(first)],
+    ['set', solution[first]],
+    ['select', at(second)],
+    ['set', solution[second]],
+    ['select', at(mistake)],
+    ['set', wrongValue],
+    ['hintMode', true],
+    ['select', at(note)],
+    ['set', '1'],
+    ['set', '4'],
+    ['set', '7'],
+    ['hintMode', false],
     ['select', at(first)]
   ];
 
   return actions.reduce((state, action) => gameReducer(state, action, 0), start);
-}
+};

@@ -1,0 +1,60 @@
+@use '../controls';
+
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.time {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+
+.mistakes {
+  margin-left: 6px;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+
+  &.warning {
+    color: var(--mistake);
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+button {
+  @include controls.button;
+  min-height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+
+  &.icon {
+    width: 44px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+  }
+}
+
+svg {
+  @include controls.icon;
+}

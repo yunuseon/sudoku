@@ -10,8 +10,7 @@ describe('SudokuBoardComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [SudokuBoardComponent]
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(SudokuBoardComponent);
     component = fixture.componentInstance;

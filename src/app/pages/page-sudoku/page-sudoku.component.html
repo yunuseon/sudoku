@@ -1,61 +1,117 @@
 @if (boardConfig$ | async; as config) {
   @let elapsed = (elapsed$ | async) ?? 0;
-  <div class="game" [style.--background]="config.backgroundColor" [style.--foreground]="config.valueFontColor" [style.--accent]="config.mainBorderColor">
+  @let replay = (replay$ | async) ?? null;
+  @let newScore = newScore$ | async;
+  <div
+    class="game"
+    [style.--background]="config.backgroundColor"
+    [style.--foreground]="config.valueFontColor"
+    [style.--accent]="config.mainBorderColor"
+    [style.--mistake]="config.mistakeFontColor"
+  >
     <div class="status-bar"></div>
-    <header class="bar">
-      <span class="status">
-        <span class="time">{{ formatElapsed(elapsed) }}</span>
-        <span class="level">{{ config.level }}</span>
-      </span>
-      <div class="bar-actions">
-        @if (!isStopped(config.timer)) {
-          <button (click)="templateActions$.next(['togglePause', null])">{{ isPaused(config.timer) ? 'resume' : 'pause' }}</button>
-        }
-        <button popovertarget="theme-menu">theme</button>
-        <button popovertarget="level-picker">new game</button>
-      </div>
-    </header>
 
-    <div id="theme-menu" class="theme-sheet" popover>
-      <div class="sheet-bar">
-        <h2>Theme</h2>
-        <button popovertarget="theme-menu" popovertargetaction="hide">done</button>
-      </div>
-      @if (previewConfig$ | async; as preview) {
-        <hks-theme-menu [settings]="config" [preview]="preview" (themeChange)="themeChanges$.next($event)" />
-      }
-    </div>
-
-    <div id="level-picker" class="level-picker" popover>
-      @for (level of levels; track level) {
-        <button popovertarget="level-picker" popovertargetaction="hide" [class.active]="level === config.settings.level" (click)="newGame$.next(level)">{{ level }}</button>
-      }
-    </div>
-
-    <hks-sudoku-timeline
-      [moves]="config.moves"
-      [cursor]="config.cursor"
+    <hks-game-bar
+      [config]="config"
       [elapsed]="elapsed"
-      [timer]="config.timer"
-      [pixelsPerSecond]="config.timelinePixelsPerSecond"
-      [playheadColor]="config.timelinePlayheadColor"
-      (seek)="templateActions$.next(['seek', $event])" />
+      [replay]="replay"
+      (action)="templateActions$.next($event)"
+      (openSettings)="settingsSheet.open()"
+      (openScores)="scoresSheet.open()"
+      (openNewGame)="newGame.open()"
+    />
+
+    <hks-sheet #settingsSheet heading="Settings">
+      @if (preferences$ | async; as preferences) {
+        <hks-preferences
+          [preferences]="preferences"
+          (preferencesChange)="templateActions$.next(['preferences', $event])"
+        />
+      }
+      @if (previewConfig$ | async; as preview) {
+        <hks-theme-menu
+          [settings]="config"
+          [preview]="preview"
+          (themeChange)="themeChanges$.next($event)"
+        />
+      }
+      <hks-about />
+    </hks-sheet>
+
+    <hks-sheet
+      heading="Legal notice and privacy"
+      [stacked]="true"
+      [shown]="(isLegal$ | async) ?? false"
+      (closed)="legalClosed$.next()"
+    >
+      <hks-legal />
+    </hks-sheet>
+
+    <hks-sheet #scoresSheet heading="Scores">
+      @if (scoresLevel$ | async; as scoresLevel) {
+        <hks-scores
+          [level]="scoresLevel"
+          [scores]="(scores$ | async) ?? []"
+          [highlightedId]="newScore?.score?.id ?? null"
+          (levelChange)="templateActions$.next(['scoresLevel', $event])"
+          (selectScore)="scoreTaps$.next($event); scoresSheet.close()"
+        />
+      }
+    </hks-sheet>
+
+    <hks-new-game
+      #newGame
+      [options]="newGameOptions$ | async"
+      [mistakeLimits]="mistakeLimits"
+      (optionsChange)="templateActions$.next(['newGameOptions', $event])"
+      (start)="newGame$.next()"
+    />
+
+    @if (clock$ | async; as clock) {
+      <hks-sudoku-timeline
+        [moves]="config.moves"
+        [cursor]="config.cursor"
+        [elapsed]="elapsed"
+        [clock]="clock.read"
+        [mistakes]="config.mistakes"
+        [mistakeColor]="config.mistakeFontColor"
+        [replay]="replay !== null"
+        [pixelsPerSecond]="config.timelinePixelsPerSecond"
+        [playheadColor]="config.timelinePlayheadColor"
+        (seek)="templateActions$.next(replay ? ['replay', ['seek', $event]] : ['seek', $event])"
+      />
+    }
 
     <div class="board-area" (hksResize)="resize$.next($event)">
-      <canvas hks-sudoku-board (selectPosition)="templateActions$.next(['select', $event])" [config]="config"></canvas>
+      <canvas
+        hks-sudoku-board
+        (selectPosition)="templateActions$.next(['select', $event])"
+        [config]="config"
+      ></canvas>
     </div>
 
-    <div class="tools">
-      <button [disabled]="config.cursor === 0" (click)="templateActions$.next(['undo', null])">↶ undo</button>
-      <button [disabled]="config.cursor === config.moves.length" (click)="templateActions$.next(['redo', null])">redo ↷</button>
-      <span class="spacer"></span>
-      <button [class.active]="config.hintMode" (click)="templateActions$.next(['hintMode', !config.hintMode])">notes</button>
-      <button (click)="templateActions$.next(['set', ''])">delete</button>
-    </div>
+    @if (replay) {
+      <hks-replay-controls
+        [config]="config"
+        [replay]="replay"
+        [speeds]="replaySpeeds"
+        (action)="templateActions$.next($event)"
+      />
+    } @else {
+      <hks-game-tools
+        [config]="config"
+        [newScore]="newScore"
+        (action)="templateActions$.next($event)"
+      />
+    }
 
     <div class="pad" [style.--columns]="padColumns(config.alphabet.length)">
       @for (item of config.alphabet; track item; let i = $index) {
-        <button [class.complete]="config.remainingCounts[i] === 0" (click)="templateActions$.next(['set', item])">
+        <button
+          [class.complete]="config.remainingCounts[i] === 0"
+          [disabled]="replay !== null"
+          (click)="templateActions$.next(['set', item])"
+        >
           {{ item }}
           <span class="remaining">{{ config.remainingCounts[i] }}</span>
         </button>

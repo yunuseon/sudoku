@@ -1,3 +1,5 @@
+@use '../../components/controls';
+
 :host {
   display: block;
   height: 100%;
@@ -11,16 +13,13 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding:
-    max(12px, env(safe-area-inset-top))
-    var(--gutter-right)
-    max(12px, env(safe-area-inset-bottom))
-    var(--gutter-left);
+  padding: max(12px, env(safe-area-inset-top)) var(--gutter-right)
+    max(12px, env(safe-area-inset-bottom)) var(--gutter-left);
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, sans-serif;
 
-  > * {
+  > :not([popover]) {
     width: 100%;
     max-width: 40rem;
     align-self: center;
@@ -33,7 +32,6 @@
     margin-inline: calc(-1 * var(--gutter-left)) calc(-1 * var(--gutter-right));
   }
 
-  // iOS blurs whatever lies under the status bar unless a fixed element with a solid background covers it
   > .status-bar {
     position: fixed;
     inset: 0 0 auto;
@@ -44,113 +42,11 @@
   }
 }
 
-.bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.bar-actions {
-  display: flex;
-  gap: 6px;
-
-  button {
-    min-height: 40px;
-    padding: 0 12px;
-    white-space: nowrap;
-  }
-}
-
-.status {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.time {
-  font-size: 1.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.level {
-  font-size: 0.85rem;
-  opacity: 0.6;
-}
-
-.theme-sheet {
-  width: 100%;
-  max-width: none;
-  height: 100%;
-  max-height: none;
-  margin: 0;
-  padding:
-    max(12px, env(safe-area-inset-top))
-    max(16px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom))
-    max(16px, env(safe-area-inset-left));
-  border: none;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, sans-serif;
-
-  > * {
-    max-width: 40rem;
-    margin-inline: auto;
-  }
-}
-
-.sheet-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  h2 {
-    font-size: 1.3rem;
-  }
-}
-
-.level-picker {
-  margin: auto;
-  padding: 12px;
-  border: none;
-  border-radius: 14px;
-  background: var(--background);
-  color: var(--foreground);
-  box-shadow: 0 8px 32px rgb(0 0 0 / 40%);
-
-  &:popover-open {
-    display: grid;
-    gap: 8px;
-    min-width: 200px;
-  }
-
-  &::backdrop {
-    background: rgb(0 0 0 / 40%);
-  }
-}
-
 .board-area {
   flex: 1;
   min-height: 0;
   display: grid;
   place-items: center;
-}
-
-.tools {
-  display: flex;
-  gap: 6px;
-
-  .spacer {
-    flex: 1;
-  }
-
-  button {
-    min-height: 36px;
-    font-size: 0.9rem;
-  }
 }
 
 .pad {
@@ -159,6 +55,7 @@
   gap: 6px;
 
   button {
+    @include controls.button;
     position: relative;
     min-height: 64px;
     padding: 0;
@@ -176,28 +73,4 @@
   right: 6px;
   font-size: 0.7rem;
   opacity: 0.7;
-}
-
-button {
-  min-height: 48px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--foreground) 10%, transparent);
-  color: var(--foreground);
-  cursor: pointer;
-
-  &:active {
-    background: color-mix(in srgb, var(--foreground) 20%, transparent);
-  }
-
-  &.active {
-    background: var(--accent);
-    color: var(--background);
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
 }

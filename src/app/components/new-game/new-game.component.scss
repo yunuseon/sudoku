@@ -1,0 +1,30 @@
+@use '../controls';
+
+:host {
+  @include controls.popup;
+
+  &:popover-open {
+    width: min(360px, calc(100vw - 32px));
+    gap: 12px;
+  }
+}
+
+h3 {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.choices {
+  @include controls.choices;
+}
+
+button {
+  @include controls.button;
+}
+
+.start {
+  margin-top: 8px;
+  background: var(--accent);
+  color: var(--background);
+}

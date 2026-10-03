@@ -1,0 +1,89 @@
+@mixin button {
+  min-height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+
+  &:active {
+    background: color-mix(in srgb, var(--foreground) 20%, transparent);
+  }
+
+  &.active {
+    background: var(--accent);
+    color: var(--background);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+@mixin icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+
+  .solid {
+    fill: currentColor;
+    stroke: none;
+  }
+}
+
+@mixin choices {
+  display: flex;
+  gap: 6px;
+
+  button {
+    flex: 1;
+    padding: 0 8px;
+  }
+}
+
+@mixin popup {
+  margin: auto;
+  padding: 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 40%);
+
+  &:popover-open {
+    display: grid;
+    gap: 8px;
+    min-width: 200px;
+  }
+
+  &::backdrop {
+    background: rgb(0 0 0 / 40%);
+  }
+}
+
+@mixin group {
+  margin-top: 16px;
+  padding: 4px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+
+  h3 {
+    margin: 10px 0 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  hks-field + hks-field {
+    border-top: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+}

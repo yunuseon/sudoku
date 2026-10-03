@@ -4,7 +4,8 @@ import { PageSudokuComponent } from './pages/page-sudoku/page-sudoku.component';
 export const routes: Routes = [
   {
     path: '',
-    component: PageSudokuComponent
+    component: PageSudokuComponent,
+    children: [{ path: 'legal', children: [] }]
   },
   {
     path: '**',
