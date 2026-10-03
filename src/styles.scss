@@ -17,6 +17,7 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 body {
+  background-color: inherit;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -66,6 +67,14 @@ h6 {
 #root,
 #__next {
   isolation: isolate;
+}
+
+.status-cover {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: env(safe-area-inset-top);
+  background-color: inherit;
 }
 
 .splash {

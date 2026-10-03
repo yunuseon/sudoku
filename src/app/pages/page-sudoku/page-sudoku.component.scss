@@ -31,15 +31,6 @@
     align-self: stretch;
     margin-inline: calc(-1 * var(--gutter-left)) calc(-1 * var(--gutter-right));
   }
-
-  > .status-bar {
-    position: fixed;
-    inset: 0 0 auto;
-    width: auto;
-    max-width: none;
-    height: env(safe-area-inset-top);
-    background: var(--background);
-  }
 }
 
 .board-area {
