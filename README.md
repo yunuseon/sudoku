@@ -38,3 +38,5 @@ docker run --rm -p 8080:8080 sudoku
 ```
 
 Open `http://localhost:8080/`. The image serves the static build with nginx as a non-root user on port 8080.
+
+Every push to `main` publishes `ghcr.io/yunuseon/sudoku` (amd64 and arm64) through GitHub Actions. [compose.yml](compose.yml) runs that image on port 18081, e.g. as a project in a NAS's Docker app.
