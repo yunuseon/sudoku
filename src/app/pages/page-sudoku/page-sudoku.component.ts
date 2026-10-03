@@ -313,4 +313,14 @@ export class PageSudokuComponent {
     withLatestFrom(this.boardConfig$),
     takeUntilDestroyed()
   ).subscribe(([, config]) => navigator.clipboard.writeText(JSON.stringify(config)));
+
+  // iOS shows the document's own background around the game and tints the status bar with it
+  private readonly documentBackgroundEffect = this.state$.pipe(
+    map(state => state.boardSettings.backgroundColor),
+    distinctUntilChanged(),
+    takeUntilDestroyed()
+  ).subscribe(color => {
+    this.document.documentElement.style.backgroundColor = color;
+    this.document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
+  });
 }
