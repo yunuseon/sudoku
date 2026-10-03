@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
-  <clipPath id="inside"><rect x="12" y="12" width="276" height="276" rx="8"/></clipPath>
-  <rect width="300" height="300" rx="20" fill="#d8c4b6"/>
+  <clipPath id="inside"><rect x="12" y="12" width="276" height="276" rx="55.11"/></clipPath>
+  <rect width="300" height="300" rx="67.11" fill="#d8c4b6"/>
   <g clip-path="url(#inside)">
     <rect x="12" y="12" width="88" height="88" fill="#3e5879"/>
     <rect x="106" y="12" width="88" height="88" fill="#3e5879"/>

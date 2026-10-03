@@ -1,6 +1,7 @@
 @if (boardConfig$ | async; as config) {
   @let elapsed = (elapsed$ | async) ?? 0;
   <div class="game" [style.--background]="config.backgroundColor" [style.--foreground]="config.valueFontColor" [style.--accent]="config.mainBorderColor">
+    <div class="status-bar"></div>
     <header class="bar">
       <span class="status">
         <span class="time">{{ formatElapsed(elapsed) }}</span>
