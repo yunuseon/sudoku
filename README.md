@@ -2,7 +2,7 @@
 
 A sudoku for your phone that works anywhere, even without a connection. Free, open source, and without accounts, ads or tracking.
 
-**[Play it at sudoku.yunusozturk.de](https://sudoku.yunusozturk.de)** · [Source on GitHub](https://github.com/yunuseon/sudoku)
+**[Play it at sudoku.yunusozturk.de](https://sudoku.yunusozturk.de)** · [Source](https://git.yunusozturk.de/yunus/sudoku)
 
 <p align="center">
   <img src="docs/screenshot.png" alt="A game in progress: timer, mistake counter, a timeline of moves, the board with notes and highlighted numbers, and the number pad" width="320">
