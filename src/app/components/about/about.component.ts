@@ -8,5 +8,5 @@ import { RouterLink } from '@angular/router';
   styleUrl: './about.component.scss'
 })
 export class AboutComponent {
-  protected readonly repository = 'https://github.com/yunuseon/sudoku';
+  protected readonly repository = 'https://git.yunusozturk.de/yunus/sudoku';
 }
