@@ -90,10 +90,10 @@ deploy/        Dockerfile and nginx configuration
 
 ## Deployment
 
-Every push to `main` is checked (formatting, lint, tests) and then published as a Docker image for amd64 and arm64 as `ghcr.io/yunuseon/sudoku`, tagged `latest`. Version tags such as `v1.0.0` publish it as `1.0.0` as well. The image serves the static build with nginx as a non-root user on port 8080, with a strict Content Security Policy and further security headers:
+Every push to `main` is checked (formatting, lint, tests) and then published as a Docker image for amd64 as `git.yunusozturk.de/yunus/sudoku`, tagged `latest`. Version tags such as `v1.0.0` publish it as `1.0.0` as well. The image serves the static build with nginx as a non-root user on port 8080, with a strict Content Security Policy and further security headers:
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/yunuseon/sudoku
+docker run --rm -p 8080:8080 git.yunusozturk.de/yunus/sudoku
 ```
 
 To build it yourself:
